@@ -1,0 +1,359 @@
+{
+	"info": {
+		"_postman_id": "llamafactory-api-collection",
+		"name": "LLaMA Factory API 服务",
+		"description": "LLaMA-Factory FastAPI 服务的 Postman 集合，包含所有 API 接口的测试请求",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "基础接口",
+			"item": [
+				{
+					"name": "根路径",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "获取 API 服务基本信息"
+					},
+					"response": []
+				},
+				{
+					"name": "健康检查",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "检查服务健康状态和模型加载情况"
+					},
+					"response": []
+				},
+				{
+					"name": "模型信息",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/model/info",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"model",
+								"info"
+							]
+						},
+						"description": "获取模型详细信息"
+					},
+					"response": []
+				}
+			],
+			"description": "基础服务接口"
+		},
+		{
+			"name": "聊天接口",
+			"item": [
+				{
+					"name": "简单对话",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"你好，请介绍一下你自己\"\n    }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 512,\n  \"top_p\": 0.9,\n  \"stream\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat"
+							]
+						},
+						"description": "简单的单轮对话"
+					},
+					"response": []
+				},
+				{
+					"name": "带系统提示词",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"你是一个专业的编程助手，擅长Python和机器学习。请用简洁明了的方式回答问题。\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"如何实现一个简单的神经网络？\"\n    }\n  ],\n  \"temperature\": 0.3,\n  \"max_tokens\": 300,\n  \"top_p\": 0.9,\n  \"stream\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat"
+							]
+						},
+						"description": "带系统提示词的聊天示例"
+					},
+					"response": []
+				},
+				{
+					"name": "多轮对话",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"你是一个友好的AI助手，请保持对话的连贯性。\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"我想学习Python编程\"\n    },\n    {\n      \"role\": \"assistant\",\n      \"content\": \"很好！Python是一门非常适合初学者的编程语言。你想从哪个方面开始学习呢？\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"我想先了解基本语法\"\n    }\n  ],\n  \"temperature\": 0.5,\n  \"max_tokens\": 300,\n  \"top_p\": 0.9,\n  \"stream\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat"
+							]
+						},
+						"description": "带系统提示词的多轮对话示例"
+					},
+					"response": []
+				},
+				{
+					"name": "创意写作",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"请写一个关于人工智能的短故事，要求有创意和想象力\"\n    }\n  ],\n  \"temperature\": 0.9,\n  \"max_tokens\": 800,\n  \"top_p\": 0.95,\n  \"stream\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat"
+							]
+						},
+						"description": "创意写作，使用较高的温度参数"
+					},
+					"response": []
+				}
+			],
+			"description": "聊天对话相关接口"
+		},
+		{
+			"name": "文本生成接口",
+			"item": [
+				{
+					"name": "代码生成",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"prompt\": \"请写一个Python函数，实现快速排序算法\",\n  \"temperature\": 0.3,\n  \"max_tokens\": 600,\n  \"top_p\": 0.8,\n  \"stream\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/generate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"generate"
+							]
+						},
+						"description": "代码生成，使用较低温度确保准确性"
+					},
+					"response": []
+				},
+				{
+					"name": "文本摘要",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"prompt\": \"请为以下文本写一个摘要：\\n\\n人工智能（AI）是计算机科学的一个分支，它企图了解智能的实质，并生产出一种新的能以人类智能相似的方式做出反应的智能机器。该领域的研究包括机器人、语言识别、图像识别、自然语言处理和专家系统等。人工智能从诞生以来，理论和技术日益成熟，应用领域也不断扩大。可以设想，未来人工智能带来的科技产品，将会是人类智慧的'容器'。\",\n  \"temperature\": 0.5,\n  \"max_tokens\": 200,\n  \"top_p\": 0.9,\n  \"stream\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/generate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"generate"
+							]
+						},
+						"description": "文本摘要生成"
+					},
+					"response": []
+				},
+				{
+					"name": "翻译任务",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"prompt\": \"请将以下英文翻译成中文：\\n\\nArtificial intelligence is transforming the way we work and live. From smart assistants to autonomous vehicles, AI technologies are becoming increasingly integrated into our daily lives.\",\n  \"temperature\": 0.3,\n  \"max_tokens\": 300,\n  \"top_p\": 0.8,\n  \"stream\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/generate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"generate"
+							]
+						},
+						"description": "翻译任务"
+					},
+					"response": []
+				}
+			],
+			"description": "文本生成相关接口"
+		},
+		{
+			"name": "批量处理接口",
+			"item": [
+				{
+					"name": "批量问答",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"prompts\": [\n    \"什么是机器学习？\",\n    \"Python有哪些优势？\",\n    \"如何学习编程？\",\n    \"人工智能的发展趋势是什么？\"\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 300,\n  \"top_p\": 0.9\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/batch",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"batch"
+							]
+						},
+						"description": "批量处理多个问题"
+					},
+					"response": []
+				},
+				{
+					"name": "批量代码生成",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"prompts\": [\n    \"写一个Python函数计算两个数的最大公约数\",\n    \"写一个Python函数判断一个数是否为质数\",\n    \"写一个Python函数实现冒泡排序\"\n  ],\n  \"temperature\": 0.3,\n  \"max_tokens\": 400,\n  \"top_p\": 0.8\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/batch",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"batch"
+							]
+						},
+						"description": "批量生成代码"
+					},
+					"response": []
+				}
+			],
+			"description": "批量处理相关接口"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		}
+	]
+}
