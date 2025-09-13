@@ -19,7 +19,7 @@ configs/
 python llamafactory_local_runner.py
 
 # 或指定配置文件
-python llamafactory_local_runner.py train --config configs/llama3.2_lora_sft_local.yaml
+python llamafactory_local_runner.py train --config configs/llama3.2_lora_sft.yaml
 ```
 
 ### 2. 聊天测试
@@ -42,7 +42,7 @@ python llamafactory_local_runner.py
 ```yaml
 # 当前激活配置
 command: train  # 命令类型
-config: llama3.2_lora_sft_local.yaml  # 配置文件
+config: llama3.2_lora_sft.yaml  # 配置文件
 args:  # 全局参数
   cache_dir: hf_cache
   dataset_dir: ../data
@@ -81,8 +81,8 @@ max_samples: 1000     # 最大样本数 (测试时可设为 10)
 ### 1. 切换模型
 修改 `runner_config.yaml` 中的 `config` 字段：
 ```yaml
-config: llama3.2_lora_sft_local.yaml  # Llama 模型
-# config: qwen2.5_lora_sft_local.yaml  # Qwen 模型
+config: llama3.2_lora_sft.yaml  # Llama 模型
+# config: qwen2.5_lora_sft.yaml  # Qwen 模型
 ```
 
 ### 2. 调整训练参数

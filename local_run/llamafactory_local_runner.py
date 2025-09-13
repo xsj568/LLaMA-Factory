@@ -210,12 +210,12 @@ class LLaMAFactoryRunner:
 
     def run_auto_fallback(self) -> int:
         # 优先尝试 configs 目录下的本地训练配置
-        preferred_local = LOCAL_RUN_DIR / "configs" / "qwen2.5_lora_sft_local.yaml"
+        preferred_local = LOCAL_RUN_DIR / "configs" / "qwen2.5_lora_sft.yaml"
         if preferred_local.exists():
             logger.info(f"使用本地训练配置：{preferred_local}")
             return self.train(str(preferred_local))
         # 次选 examples 目录下的示例配置
-        preferred_example = self.examples_dir / "train_lora" / "qwen2.5_lora_sft_local.yaml"
+        preferred_example = self.examples_dir / "train_lora" / "qwen2.5_lora_sft.yaml"
         if preferred_example.exists():
             logger.info(f"使用示例训练配置：{preferred_example}")
             return self.train(str(preferred_example))
@@ -410,7 +410,7 @@ def main():
     subparsers = parser.add_subparsers(dest='command', help='可用命令')
 
     train_parser = subparsers.add_subparser('train', help='训练模型') if hasattr(subparsers, 'add_subparser') else subparsers.add_parser('train', help='训练模型')
-    train_parser.add_argument('--config', default=str(LOCAL_RUN_DIR / 'qwen2.5_lora_sft_local.yaml'), help='配置文件路径（可选，不指定则使用默认配置）')
+    train_parser.add_argument('--config', default=str(LOCAL_RUN_DIR / 'qwen2.5_lora_sft.yaml'), help='配置文件路径（可选，不指定则使用默认配置）')
     train_parser.add_argument('--model', default='models/Llama-3.2-1B-Instruct', help='模型路径')
     train_parser.add_argument('--dataset', default='identity,alpaca_en_demo', help='数据集名称')
     train_parser.add_argument('--learning-rate', type=float, default=1e-4, help='学习率')

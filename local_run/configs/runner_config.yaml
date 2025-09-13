@@ -6,11 +6,18 @@
 # - 未提供 config 时，需在 args 中提供必要参数（如 chat/api/webchat 需 model_path）。
 
 # ===== 默认：使用示例训练 YAML 启动训练 =====
-command: train
-config: llama3.2_lora_sft_local.yaml #qwen2.5_lora_sft_local.yaml
-args:
-  cache_dir: hf_cache
-  dataset_dir: ../data
+#command: train
+#config: llama3.2_lora_sft.yaml #qwen2.5_lora_sft.yaml
+#args:
+#  cache_dir: hf_cache
+#  dataset_dir: ../data
+
+# ===== 模型合并 (LoRA 适配器合并到基础模型) =====
+ command: export
+ config: llama3.2_lora_sft_merge.yaml
+ args:
+   cache_dir: hf_cache
+   dataset_dir: ../data
 
 # ============================================================================
 # 其他场景模板（将其改为生效：把上面三行替换为下述任一块的内容）

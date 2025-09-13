@@ -58,6 +58,12 @@ logger = logging.getLogger(__name__)
 chat_model = None
 model_loaded = False
 
+# 模型路径配置
+MODEL_PATHS = {
+    "base_model": "models/Llama-3.2-1B-Instruct",
+    "merged_model": "output/llama3.2-1b-lora-sft"
+}
+
 def check_dependencies():
     """检查依赖是否安装"""
     required_packages = [
@@ -83,19 +89,20 @@ def check_dependencies():
 
 def check_model_files():
     """检查模型文件是否存在"""
-    model_path = LOCAL_RUN_DIR / "models" / "Llama-3.2-1B-Instruct"
-    adapter_path = LOCAL_RUN_DIR / "saves" / "llama3.2-1b-lora-sft"
+    base_model_path = LOCAL_RUN_DIR / MODEL_PATHS["base_model"]
+    merged_model_path = LOCAL_RUN_DIR / MODEL_PATHS["merged_model"]
     
-    if not model_path.exists():
-        print(f"❌ 错误: 模型文件不存在: {model_path}")
+    if not base_model_path.exists():
+        print(f"❌ 错误: 基础模型文件不存在: {base_model_path}")
         print("请确保模型文件已正确放置在 models/ 目录下")
         return False
     
-    if not adapter_path.exists():
-        print(f"⚠️  警告: LoRA 适配器不存在: {adapter_path}")
-        print("将使用基础模型进行推理")
+    # 检查合并模型
+    if merged_model_path.exists():
+        print(f"✅ 合并后的微调模型存在: {merged_model_path}")
     else:
-        print(f"✅ LoRA 适配器存在: {adapter_path}")
+        print(f"⚠️  提示: 合并后的微调模型不存在: {merged_model_path}")
+        print("将使用基础模型进行推理")
     
     return True
 
@@ -190,37 +197,38 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def load_model():
-    """加载模型"""
+def load_model(use_merged_model: bool = True):
+    """加载模型 - 通过参数控制使用基座模型或合并模型"""
     global chat_model, model_loaded
     
     try:
-        # 检查模型路径
-        model_path = LOCAL_RUN_DIR / "models" / "Llama-3.2-1B-Instruct"
-        adapter_path = LOCAL_RUN_DIR / "saves" / "llama3.2-1b-lora-sft"
-        
-        if not model_path.exists():
-            raise FileNotFoundError(f"模型路径不存在: {model_path}")
+        # 定义模型路径
+        base_model_path = LOCAL_RUN_DIR / MODEL_PATHS["base_model"]
+        merged_model_path = LOCAL_RUN_DIR / MODEL_PATHS["merged_model"]
         
         # 构建模型参数
         model_args = {
-            "model_name_or_path": str(model_path),
             "template": "llama3",
             "trust_remote_code": True,
         }
         
-        # 如果存在适配器，则加载
-        if adapter_path.exists():
-            model_args["adapter_name_or_path"] = str(adapter_path)
-            logger.info(f"加载 LoRA 适配器: {adapter_path}")
+        # 根据参数选择模型
+        if use_merged_model and merged_model_path.exists():
+            # 使用合并后的微调模型
+            model_args["model_name_or_path"] = str(merged_model_path)
+            logger.info(f"使用合并后的微调模型: {merged_model_path}")
+        else:
+            # 使用基础模型
+            if not base_model_path.exists():
+                raise FileNotFoundError(f"基础模型路径不存在: {base_model_path}")
+            model_args["model_name_or_path"] = str(base_model_path)
+            logger.info(f"使用基础模型: {base_model_path}")
         
         # 创建聊天模型
         chat_model = ChatModel(args=model_args)
         model_loaded = True
         
-        logger.info(f"模型加载成功: {model_path}")
-        if adapter_path.exists():
-            logger.info(f"LoRA 适配器加载成功: {adapter_path}")
+        logger.info("模型加载成功！")
             
     except Exception as e:
         logger.error(f"模型加载失败: {e}")
@@ -232,7 +240,9 @@ async def startup_event():
     """应用启动事件"""
     logger.info("正在启动 FastAPI 服务...")
     try:
-        load_model()
+        # 从环境变量获取模型选择参数
+        use_merged = os.getenv("USE_MERGED_MODEL", "true").lower() == "true"
+        load_model(use_merged_model=use_merged)
         logger.info("FastAPI 服务启动成功！")
     except Exception as e:
         logger.error(f"服务启动失败: {e}")
@@ -414,16 +424,50 @@ async def model_info():
     if not model_loaded:
         raise HTTPException(status_code=503, detail="模型未加载")
     
-    return {
+    # 检查当前使用的模型类型
+    base_model_path = LOCAL_RUN_DIR / MODEL_PATHS["base_model"]
+    merged_model_path = LOCAL_RUN_DIR / MODEL_PATHS["merged_model"]
+    
+    # 从环境变量获取当前模型选择
+    use_merged = os.getenv("USE_MERGED_MODEL", "true").lower() == "true"
+    
+    model_info = {
         "model_name": "Llama-3.2-1B-Instruct",
-        "model_path": str(LOCAL_RUN_DIR / "models" / "Llama-3.2-1B-Instruct"),
-        "adapter_path": str(LOCAL_RUN_DIR / "saves" / "llama3.2-1b-lora-sft"),
         "template": "llama3",
         "status": "loaded"
     }
+    
+    if use_merged and merged_model_path.exists():
+        model_info.update({
+            "model_type": "merged",
+            "model_path": str(merged_model_path),
+            "description": "使用合并后的微调模型"
+        })
+    else:
+        model_info.update({
+            "model_type": "base",
+            "model_path": str(base_model_path),
+            "description": "使用基础模型"
+        })
+    
+    return model_info
 
 def main():
     """主函数：启动前检查并启动服务"""
+    import argparse
+    
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description="LLaMA-Factory FastAPI 服务")
+    parser.add_argument("--use-base", action="store_true", default=False, help="使用基础模型（默认true）")
+    parser.add_argument("--use-merged", action="store_true", help="使用合并模型")
+    parser.add_argument("--port", type=int, default=8000, help="服务端口（默认8000）")
+    parser.add_argument("--host", default="0.0.0.0", help="服务主机（默认0.0.0.0）")
+    args = parser.parse_args()
+    
+    # 设置环境变量 - 优先使用合并模型，如果指定了 --use-merged
+    use_merged = args.use_merged or (not args.use_base)
+    os.environ["USE_MERGED_MODEL"] = "true" if use_merged else "false"
+    
     print("🔍 正在检查环境...")
     
     # 检查依赖
@@ -442,13 +486,19 @@ def main():
     # 显示启动信息
     show_startup_info()
     
+    # 显示模型选择信息
+    if use_merged:
+        print("📋 模型选择: 合并模型（如果存在）")
+    else:
+        print("📋 模型选择: 基础模型")
+    
     try:
         # 启动服务
         print("🚀 正在启动服务...")
         uvicorn.run(
             "fastapi_service:app",
-            host="0.0.0.0",
-            port=8000,
+            host=args.host,
+            port=args.port,
             reload=False,
             log_level="info"
         )
