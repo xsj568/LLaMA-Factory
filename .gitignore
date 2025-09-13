@@ -1,3 +1,6 @@
+local_run/models
+local_run/saves
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

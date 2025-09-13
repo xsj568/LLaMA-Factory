@@ -1,0 +1,53 @@
+### model - 模型配置
+model_name_or_path: models/Llama-3.2-1B-Instruct  # 本地模型路径，避免网络下载
+trust_remote_code: true  # 信任远程代码，允许加载自定义模型
+
+### method - 微调方法配置
+stage: sft  # 监督微调阶段
+do_train: true  # 启用训练模式
+finetuning_type: lora  # 使用LoRA微调方法
+lora_rank: 2  # LoRA秩，控制参数量，越小参数量越少
+lora_target: q_proj,v_proj  # LoRA作用模块：查询和值投影，参数量减少70%
+#q_proj,k_proj,v_proj: 注意力机制完整优化（参数量减少约 40%）
+#q_proj,o_proj: 查询和输出优化
+#gate_proj,up_proj,down_proj: MLP 层优化
+
+### dataset - 数据集配置
+dataset: identity,alpaca_en_demo  # 使用身份和Alpaca英文演示数据集
+template: llama3  # 使用Llama3对话模板
+cutoff_len: 2048  # 文本截断长度，控制内存使用
+max_samples: 10  # 最大样本数，用于快速测试
+overwrite_cache: true  # 覆盖缓存，确保使用最新数据
+preprocessing_num_workers: 1  # Windows多进程问题，设置为1避免pickle错误
+dataloader_num_workers: 0  # Windows多进程问题，设置为0避免spawn错误
+
+### output - 输出配置
+output_dir: local_run/llama3.2-1b-lora-sft  # 模型保存路径，直接在local_run目录下
+logging_steps: 1  # 每1步记录一次日志，便于监控训练进度
+save_steps: 2  # 每2步保存一次模型，防止训练中断丢失进度
+plot_loss: true  # 绘制损失曲线图
+overwrite_output_dir: true  # 覆盖输出目录，允许重复训练
+save_only_model: false  # 保存完整训练状态，包括优化器状态
+report_to: none  # 不向外部平台报告，保持本地训练
+
+### train - 训练参数配置
+per_device_train_batch_size: 1  # 每个设备的批次大小，控制内存使用
+gradient_accumulation_steps: 8  # 梯度累积步数，等效批次大小=1*8=8
+learning_rate: 1.0e-4  # 学习率，LoRA微调的常用学习率
+num_train_epochs: 3.0  # 训练轮数，3轮通常足够
+lr_scheduler_type: cosine  # 余弦学习率调度器，平滑降低学习率
+warmup_ratio: 0.1  # 预热比例，前10%步数用于学习率预热
+bf16: false  # 不使用bfloat16，避免兼容性问题
+ddp_timeout: 180000000  # 分布式训练超时时间
+resume_from_checkpoint: null  # 不从检查点恢复，从头开始训练
+
+### Windows 兼容性设置 - Windows系统特殊配置
+ddp_find_unused_parameters: false  # 不查找未使用参数，避免Windows DDP问题
+dataloader_pin_memory: false  # 不使用内存固定，避免Windows兼容性问题
+
+### eval
+# eval_dataset: alpaca_en_demo
+# val_size: 0.1
+# per_device_eval_batch_size: 1
+# eval_strategy: steps
+# eval_steps: 500

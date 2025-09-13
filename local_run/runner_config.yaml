@@ -1,0 +1,133 @@
+# LLaMA-Factory 本地运行统一配置（单文档 YAML，包含所有场景示例）
+# 使用说明：
+# - 零参数执行将读取本文件。
+# - 切换场景：编辑下方 command/config/args 三行即可；其他场景模板见注释。
+# - 若提供 config（任务 YAML），args 将作为补充/覆盖项传入对应方法。
+# - 未提供 config 时，需在 args 中提供必要参数（如 chat/api/webchat 需 model_path）。
+
+# ===== 默认：使用示例训练 YAML 启动训练 =====
+command: train
+config: llama3.2_lora_sft_local.yaml #qwen2.5_lora_sft_local.yaml
+args:
+  cache_dir: ./hf_cache
+  dataset_dir: ../data
+
+# ============================================================================
+# 其他场景模板（将其改为生效：把上面三行替换为下述任一块的内容）
+# ============================================================================
+
+# 训练（LoRA SFT，无任务 YAML，直接参数）
+# 使用方法：将下面的注释去掉，替换上面的默认配置
+# command: train
+# args:
+#   # === 模型配置 ===
+#   model_name_or_path: models/Llama-3.2-1B-Instruct  # 本地模型路径
+#   dataset: identity,alpaca_en_demo  # 数据集名称
+#   
+#   # === LoRA微调配置 ===
+#   finetuning_type: lora  # 使用LoRA微调方法
+#   lora_rank: 8  # LoRA秩，控制参数量，越大参数量越多
+#   lora_target: q_proj,v_proj  # LoRA作用模块，减少参数量70%
+#   
+#   # === 数据处理配置 ===
+#   template: llama3  # 对话模板
+#   cutoff_len: 2048  # 文本截断长度
+#   max_samples: 1000  # 最大样本数
+#   overwrite_cache: true  # 覆盖缓存
+#   preprocessing_num_workers: 1  # Windows多进程问题，设置为1避免pickle错误
+#   dataloader_num_workers: 0     # Windows多进程问题，设置为0避免spawn错误
+#   
+#   # === 输出配置 ===
+#   output_dir: local_run/llama3.2-1b-lora-sft  # 模型保存路径
+#   logging_steps: 10  # 日志记录步数
+#   save_steps: 500  # 模型保存步数
+#   plot_loss: true  # 绘制损失曲线
+#   overwrite_output_dir: true  # 覆盖输出目录
+#   save_only_model: false  # 保存完整训练状态
+#   report_to: none  # 不向外部平台报告
+#   
+#   # === 训练参数配置 ===
+#   per_device_train_batch_size: 1  # 批次大小
+#   gradient_accumulation_steps: 8  # 梯度累积步数
+#   learning_rate: 1.0e-4  # 学习率
+#   num_train_epochs: 3  # 训练轮数
+#   lr_scheduler_type: cosine  # 学习率调度器
+#   warmup_ratio: 0.1  # 预热比例
+#   bf16: true  # 使用bfloat16精度
+
+# 聊天（CLI，使用任务 YAML）
+# 使用预定义的推理配置文件进行聊天
+# command: chat
+# config: output/sample_inference_config.yaml
+# args:
+#   cache_dir: local_run/hf_cache  # 缓存目录
+#   dataset_dir: ../data  # 数据集目录
+
+# 聊天（CLI，直接参数）
+# 直接指定模型和适配器路径进行聊天
+# command: chat
+# args:
+#   model_path: models/Llama-3.2-1B-Instruct  # 基础模型路径
+#   adapter_path: local_run/llama3.2-1b-lora-sft  # LoRA适配器路径（可选）
+#   template: llama3  # 对话模板（可选）
+#   trust_remote_code: true  # 信任远程代码（透传）
+
+# Web 聊天（使用任务 YAML）
+# command: webchat
+# config: output/webchat_config.yaml
+# args:
+#   cache_dir: local_run/hf_cache
+#   dataset_dir: ../data
+
+# Web 聊天（直接参数）
+# command: webchat
+# args:
+#   model_path: models/Llama-3.2-1B-Instruct
+#   adapter_path: saves/llama3-1b/lora/sft   # 可选
+#   template: llama3                          # 可选
+#   trust_remote_code: true
+
+# Web UI（忽略 config，仅 args 可选）
+# command: webui
+# args:
+#   port: 7860
+#   host: 0.0.0.0
+
+# API 服务（使用任务 YAML）
+# command: api
+# config: examples/inference/llama3.yaml
+# args:
+#   cache_dir: local_run/hf_cache
+#   dataset_dir: ../data
+
+# API 服务（直接参数）
+# command: api
+# args:
+#   model_path: models/Llama-3.2-1B-Instruct
+#   adapter_path: saves/llama3-1b/lora/sft   # 可选
+#   template: llama3                          # 可选
+#   port: 8000
+#   host: 0.0.0.0
+#   trust_remote_code: true
+
+# 导出（使用导出 YAML）
+# command: export
+# config: output/export_config.yaml
+# args:
+#   cache_dir: local_run/hf_cache
+#   dataset_dir: ../data
+
+# 导出（直接参数）
+# command: export
+# args:
+#   model_path: models/Llama-3.2-1B-Instruct
+#   adapter_path: saves/llama3-1b/lora/sft
+#   export_dir: output/merged_model
+#   template: llama3   # 可选
+
+# 评估（使用评估 YAML）
+# command: eval
+# config: examples/train_lora/llama3_lora_eval.yaml
+# args:
+#   cache_dir: local_run/hf_cache
+#   dataset_dir: ../data
