@@ -6,7 +6,7 @@ LLaMA-Factory 本地执行脚本（local_run 版本）
 
 该版本放置于 local_run/ 目录下：
 - 工作目录(project_root) 自动定位为仓库根目录
-- 零参数启动时默认读取 local_run/runner_config.yaml
+- 零参数启动时默认读取 configs/runner_config.yaml
 """
 
 import os
@@ -42,7 +42,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(str(LOCAL_RUN_DIR / 'llamafactory_runner.log'), encoding='utf-8')
+        logging.FileHandler(str(LOCAL_RUN_DIR / 'logs' / 'llamafactory_runner.log'), encoding='utf-8')
     ]
 )
 logger = logging.getLogger(__name__)
@@ -72,14 +72,21 @@ class LLaMAFactoryRunner:
         # 将所有本地生成的配置与输出统一到 local_run 目录
         self.output_dir = LOCAL_RUN_DIR  # 输出目录
         self.saves_dir = LOCAL_RUN_DIR / "saves"  # 模型保存目录
-        # 运行配置放在 local_run 目录
-        self.default_runner_cfg = LOCAL_RUN_DIR / "runner_config.yaml"  # 默认运行配置
+        # 运行配置放在 configs 目录
+        self.default_runner_cfg = LOCAL_RUN_DIR / "configs" / "runner_config.yaml"  # 默认运行配置
 
         # 创建必要的目录
         self._create_directories()
 
     def _create_directories(self):
-        directories = [self.output_dir, self.saves_dir]
+        directories = [
+            self.output_dir, 
+            self.saves_dir,
+            LOCAL_RUN_DIR / "configs",
+            LOCAL_RUN_DIR / "logs",
+            LOCAL_RUN_DIR / "models",
+            LOCAL_RUN_DIR / "hf_cache"
+        ]
         for directory in directories:
             directory.mkdir(exist_ok=True)
             logger.info(f"确保目录存在: {directory}")
@@ -202,8 +209,8 @@ class LLaMAFactoryRunner:
         return 1
 
     def run_auto_fallback(self) -> int:
-        # 优先尝试 local_run 目录下的本地训练配置
-        preferred_local = LOCAL_RUN_DIR / "qwen2.5_lora_sft_local.yaml"
+        # 优先尝试 configs 目录下的本地训练配置
+        preferred_local = LOCAL_RUN_DIR / "configs" / "qwen2.5_lora_sft_local.yaml"
         if preferred_local.exists():
             logger.info(f"使用本地训练配置：{preferred_local}")
             return self.train(str(preferred_local))

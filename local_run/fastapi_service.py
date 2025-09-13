@@ -26,8 +26,8 @@ import logging
 
 # 添加项目路径
 THIS_FILE = Path(__file__).resolve()
-LOCAL_RUN_DIR = THIS_FILE.parent
-PROJECT_ROOT = LOCAL_RUN_DIR.parent
+LOCAL_RUN_DIR = THIS_FILE.parent  # 当前目录就是 local_run
+PROJECT_ROOT = LOCAL_RUN_DIR.parent  # 上级目录是 LLaMA-Factory
 SRC_DIR = PROJECT_ROOT / "src"
 
 if str(SRC_DIR) not in sys.path:
@@ -84,7 +84,7 @@ def check_dependencies():
 def check_model_files():
     """检查模型文件是否存在"""
     model_path = LOCAL_RUN_DIR / "models" / "Llama-3.2-1B-Instruct"
-    adapter_path = LOCAL_RUN_DIR / "llama3.2-1b-lora-sft"
+    adapter_path = LOCAL_RUN_DIR / "saves" / "llama3.2-1b-lora-sft"
     
     if not model_path.exists():
         print(f"❌ 错误: 模型文件不存在: {model_path}")
@@ -197,7 +197,7 @@ def load_model():
     try:
         # 检查模型路径
         model_path = LOCAL_RUN_DIR / "models" / "Llama-3.2-1B-Instruct"
-        adapter_path = LOCAL_RUN_DIR / "llama3.2-1b-lora-sft"
+        adapter_path = LOCAL_RUN_DIR / "saves" / "llama3.2-1b-lora-sft"
         
         if not model_path.exists():
             raise FileNotFoundError(f"模型路径不存在: {model_path}")
@@ -417,7 +417,7 @@ async def model_info():
     return {
         "model_name": "Llama-3.2-1B-Instruct",
         "model_path": str(LOCAL_RUN_DIR / "models" / "Llama-3.2-1B-Instruct"),
-        "adapter_path": str(LOCAL_RUN_DIR / "llama3.2-1b-lora-sft"),
+        "adapter_path": str(LOCAL_RUN_DIR / "saves" / "llama3.2-1b-lora-sft"),
         "template": "llama3",
         "status": "loaded"
     }

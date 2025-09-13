@@ -22,7 +22,7 @@ preprocessing_num_workers: 1  # Windows多进程问题，设置为1避免pickle�
 dataloader_num_workers: 0  # Windows多进程问题，设置为0避免spawn错误
 
 ### output - 输出配置
-output_dir: local_run/llama3.2-1b-lora-sft  # 模型保存路径，直接在local_run目录下
+output_dir: saves/llama3.2-1b-lora-sft  # 模型保存路径，直接在saves目录下
 logging_steps: 1  # 每1步记录一次日志，便于监控训练进度
 save_steps: 2  # 每2步保存一次模型，防止训练中断丢失进度
 plot_loss: true  # 绘制损失曲线图

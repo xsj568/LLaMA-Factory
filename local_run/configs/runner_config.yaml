@@ -9,7 +9,7 @@
 command: train
 config: llama3.2_lora_sft_local.yaml #qwen2.5_lora_sft_local.yaml
 args:
-  cache_dir: ./hf_cache
+  cache_dir: hf_cache
   dataset_dir: ../data
 
 # ============================================================================
@@ -38,7 +38,7 @@ args:
 #   dataloader_num_workers: 0     # Windows多进程问题，设置为0避免spawn错误
 #   
 #   # === 输出配置 ===
-#   output_dir: local_run/llama3.2-1b-lora-sft  # 模型保存路径
+#   output_dir: saves/llama3.2-1b-lora-sft  # 模型保存路径
 #   logging_steps: 10  # 日志记录步数
 #   save_steps: 500  # 模型保存步数
 #   plot_loss: true  # 绘制损失曲线
@@ -53,14 +53,15 @@ args:
 #   num_train_epochs: 3  # 训练轮数
 #   lr_scheduler_type: cosine  # 学习率调度器
 #   warmup_ratio: 0.1  # 预热比例
-#   bf16: true  # 使用bfloat16精度
+#   bf16: false  # 使用bfloat16精度 (CPU环境需要设为false)
+#   fp16: false  # 使用float16精度 (CPU环境建议设为false)
 
 # 聊天（CLI，使用任务 YAML）
 # 使用预定义的推理配置文件进行聊天
 # command: chat
 # config: output/sample_inference_config.yaml
 # args:
-#   cache_dir: local_run/hf_cache  # 缓存目录
+#   cache_dir: hf_cache  # 缓存目录
 #   dataset_dir: ../data  # 数据集目录
 
 # 聊天（CLI，直接参数）
@@ -68,7 +69,7 @@ args:
 # command: chat
 # args:
 #   model_path: models/Llama-3.2-1B-Instruct  # 基础模型路径
-#   adapter_path: local_run/llama3.2-1b-lora-sft  # LoRA适配器路径（可选）
+#   adapter_path: saves/llama3.2-1b-lora-sft  # LoRA适配器路径（可选）
 #   template: llama3  # 对话模板（可选）
 #   trust_remote_code: true  # 信任远程代码（透传）
 
@@ -76,7 +77,7 @@ args:
 # command: webchat
 # config: output/webchat_config.yaml
 # args:
-#   cache_dir: local_run/hf_cache
+#   cache_dir: hf_cache
 #   dataset_dir: ../data
 
 # Web 聊天（直接参数）
@@ -104,7 +105,7 @@ args:
 # command: api
 # args:
 #   model_path: models/Llama-3.2-1B-Instruct  # 本地模型路径
-#   adapter_path: llama3.2-1b-lora-sft  # LoRA适配器路径（可选）
+#   adapter_path: saves/llama3.2-1b-lora-sft  # LoRA适配器路径（可选）
 #   template: llama3  # 对话模板（可选）
 #   port: 8000  # 服务端口
 #   host: 0.0.0.0  # 服务主机
@@ -119,7 +120,7 @@ args:
 # command: export
 # config: output/export_config.yaml
 # args:
-#   cache_dir: local_run/hf_cache
+#   cache_dir: hf_cache
 #   dataset_dir: ../data
 
 # 导出（直接参数）
@@ -134,5 +135,5 @@ args:
 # command: eval
 # config: examples/train_lora/llama3_lora_eval.yaml
 # args:
-#   cache_dir: local_run/hf_cache
+#   cache_dir: hf_cache
 #   dataset_dir: ../data
