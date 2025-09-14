@@ -210,12 +210,12 @@ class LLaMAFactoryRunner:
 
     def run_auto_fallback(self) -> int:
         # 优先尝试 configs 目录下的本地训练配置
-        preferred_local = LOCAL_RUN_DIR / "configs" / "qwen2.5_lora_sft.yaml"
+        preferred_local = LOCAL_RUN_DIR / "configs" / "qwen3_lora_sft.yaml"
         if preferred_local.exists():
             logger.info(f"使用本地训练配置：{preferred_local}")
             return self.train(str(preferred_local))
         # 次选 examples 目录下的示例配置
-        preferred_example = self.examples_dir / "train_lora" / "qwen2.5_lora_sft.yaml"
+        preferred_example = self.examples_dir / "train_lora" / "qwen3_lora_sft.yaml"
         if preferred_example.exists():
             logger.info(f"使用示例训练配置：{preferred_example}")
             return self.train(str(preferred_example))
@@ -231,7 +231,7 @@ class LLaMAFactoryRunner:
         default_config = {
             # === 模型配置 ===
             "### model": None,
-            "model_name_or_path": kwargs.get("model_name_or_path", "models/Llama-3.2-1B-Instruct"),  # 本地模型路径
+            "model_name_or_path": kwargs.get("model_name_or_path", "models/Qwen3-0.6B"),  # 本地模型路径
             "trust_remote_code": True,  # 信任远程代码，允许加载自定义模型
             
             # === 微调方法配置 ===
@@ -245,7 +245,7 @@ class LLaMAFactoryRunner:
             # === 数据集配置 ===
             "### dataset": None,
             "dataset": kwargs.get("dataset", "identity,alpaca_en_demo"),  # 默认数据集
-            "template": kwargs.get("template", "llama3"),  # Llama3对话模板
+            "template": kwargs.get("template", "qwen3"),  # 对话模板
             "cutoff_len": kwargs.get("cutoff_len", 2048),  # 文本截断长度
             "max_samples": kwargs.get("max_samples", 1000),  # 最大样本数
             "overwrite_cache": True,  # 覆盖缓存
@@ -284,7 +284,7 @@ class LLaMAFactoryRunner:
         return str(config_path)
 
     def chat(self, model_path: str, adapter_path: Optional[str] = None,
-             template: str = "llama3", **kwargs) -> int:
+             template: str = "qwen3", **kwargs) -> int:
         logger.info(f"启动CLI聊天，模型: {model_path}")
         # 直接以源码方式创建 ChatModel 并进入交互
         args = {
@@ -292,6 +292,15 @@ class LLaMAFactoryRunner:
             "template": template,
             "trust_remote_code": True,
         }
+        
+        # 尝试使用vllm，如果不可用则回退到huggingface
+        try:
+            import vllm
+            args["infer_backend"] = "vllm"
+            logger.info("使用vLLM推理引擎")
+        except ImportError:
+            args["infer_backend"] = "huggingface"
+            logger.info("vLLM不可用，使用HuggingFace推理引擎")
         if adapter_path:
             args["adapter_name_or_path"] = adapter_path
         args.update(kwargs)
@@ -332,13 +341,22 @@ class LLaMAFactoryRunner:
         return 0
 
     def webchat(self, model_path: str, adapter_path: Optional[str] = None,
-                template: str = "llama3", **kwargs) -> int:
+                template: str = "qwen3", **kwargs) -> int:
         logger.info(f"启动Web聊天，模型: {model_path}")
         config = {
             "model_name_or_path": model_path,
             "template": template,
-            "trust_remote_code": True
+            "trust_remote_code": True,
         }
+        
+        # 尝试使用vllm，如果不可用则回退到huggingface
+        try:
+            import vllm
+            config["infer_backend"] = "vllm"
+            logger.info("使用vLLM推理引擎")
+        except ImportError:
+            config["infer_backend"] = "huggingface"
+            logger.info("vLLM不可用，使用HuggingFace推理引擎")
         if adapter_path:
             config["adapter_name_or_path"] = adapter_path
         config.update(kwargs)
@@ -349,14 +367,23 @@ class LLaMAFactoryRunner:
         return 0
 
     def api(self, model_path: str, adapter_path: Optional[str] = None,
-            template: str = "llama3", port: int = 8000, host: str = "0.0.0.0",
+            template: str = "qwen3", port: int = 8000, host: str = "0.0.0.0",
             **kwargs) -> int:
         logger.info(f"启动API服务，模型: {model_path}, 端口: {port}")
         config = {
             "model_name_or_path": model_path,
             "template": template,
-            "trust_remote_code": True
+            "trust_remote_code": True,
         }
+        
+        # 尝试使用vllm，如果不可用则回退到huggingface
+        try:
+            import vllm
+            config["infer_backend"] = "vllm"
+            logger.info("使用vLLM推理引擎")
+        except ImportError:
+            config["infer_backend"] = "huggingface"
+            logger.info("vLLM不可用，使用HuggingFace推理引擎")
         if adapter_path:
             config["adapter_name_or_path"] = adapter_path
         config.update(kwargs)
@@ -371,7 +398,7 @@ class LLaMAFactoryRunner:
         return 0
 
     def export(self, model_path: str, adapter_path: str,
-               export_dir: str, template: str = "llama3", **kwargs) -> int:
+               export_dir: str, template: str = "qwen3", **kwargs) -> int:
         logger.info(f"导出模型，基础模型: {model_path}, 适配器: {adapter_path}")
         config = {
             "model_name_or_path": model_path,
@@ -410,7 +437,7 @@ def main():
     subparsers = parser.add_subparsers(dest='command', help='可用命令')
 
     train_parser = subparsers.add_subparser('train', help='训练模型') if hasattr(subparsers, 'add_subparser') else subparsers.add_parser('train', help='训练模型')
-    train_parser.add_argument('--config', default=str(LOCAL_RUN_DIR / 'qwen2.5_lora_sft.yaml'), help='配置文件路径（可选，不指定则使用默认配置）')
+    train_parser.add_argument('--config', default=str(LOCAL_RUN_DIR / 'qwen3_lora_sft.yaml'), help='配置文件路径（可选，不指定则使用默认配置）')
     train_parser.add_argument('--model', default='models/Llama-3.2-1B-Instruct', help='模型路径')
     train_parser.add_argument('--dataset', default='identity,alpaca_en_demo', help='数据集名称')
     train_parser.add_argument('--learning-rate', type=float, default=1e-4, help='学习率')

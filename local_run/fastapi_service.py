@@ -42,6 +42,10 @@ import uvicorn
 
 # LLaMA-Factory 导入
 from llamafactory.chat.chat_model import ChatModel
+from llamafactory.extras.constants import EngineName
+
+# 配置管理器导入
+from config_manager import config_manager
 
 # 设置日志
 logging.basicConfig(
@@ -58,11 +62,14 @@ logger = logging.getLogger(__name__)
 chat_model = None
 model_loaded = False
 
-# 模型路径配置
-MODEL_PATHS = {
-    "base_model": "models/Llama-3.2-1B-Instruct",
-    "merged_model": "output/llama3.2-1b-lora-sft"
-}
+# 模型路径配置 - 现在从配置文件读取
+def get_model_paths():
+    """从配置文件获取模型路径"""
+    model_info = config_manager.get_model_info()
+    return {
+        "base_model": model_info["base_path"],
+        "merged_model": model_info["merged_path"]
+    }
 
 def check_dependencies():
     """检查依赖是否安装"""
@@ -89,8 +96,9 @@ def check_dependencies():
 
 def check_model_files():
     """检查模型文件是否存在"""
-    base_model_path = LOCAL_RUN_DIR / MODEL_PATHS["base_model"]
-    merged_model_path = LOCAL_RUN_DIR / MODEL_PATHS["merged_model"]
+    model_paths = get_model_paths()
+    base_model_path = LOCAL_RUN_DIR / model_paths["base_model"]
+    merged_model_path = LOCAL_RUN_DIR / model_paths["merged_model"]
     
     if not base_model_path.exists():
         print(f"❌ 错误: 基础模型文件不存在: {base_model_path}")
@@ -131,29 +139,33 @@ def show_startup_info():
     print("⏹️  按 Ctrl+C 停止服务")
     print("=" * 60)
 
+# 从配置文件获取默认值
+_generation_defaults = config_manager.get_generation_defaults()
+_service_config = config_manager.get_service_config()
+
 # Pydantic 模型定义
 class ChatRequest(BaseModel):
     """聊天请求模型"""
     messages: List[Dict[str, str]] = Field(..., description="对话消息列表")
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="生成温度")
-    max_tokens: int = Field(default=512, ge=1, le=4096, description="最大生成token数")
-    top_p: float = Field(default=0.9, ge=0.0, le=1.0, description="核采样参数")
-    stream: bool = Field(default=False, description="是否流式输出")
+    temperature: float = Field(default=_generation_defaults.get("temperature", 0.7), ge=0.0, le=2.0, description="生成温度")
+    max_tokens: int = Field(default=_generation_defaults.get("max_tokens", 512), ge=1, le=4096, description="最大生成token数")
+    top_p: float = Field(default=_generation_defaults.get("top_p", 0.9), ge=0.0, le=1.0, description="核采样参数")
+    stream: bool = Field(default=_generation_defaults.get("stream", False), description="是否流式输出")
 
 class TextGenerationRequest(BaseModel):
     """文本生成请求模型"""
     prompt: str = Field(..., description="输入提示词")
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="生成温度")
-    max_tokens: int = Field(default=512, ge=1, le=4096, description="最大生成token数")
-    top_p: float = Field(default=0.9, ge=0.0, le=1.0, description="核采样参数")
-    stream: bool = Field(default=False, description="是否流式输出")
+    temperature: float = Field(default=_generation_defaults.get("temperature", 0.7), ge=0.0, le=2.0, description="生成温度")
+    max_tokens: int = Field(default=_generation_defaults.get("max_tokens", 512), ge=1, le=4096, description="最大生成token数")
+    top_p: float = Field(default=_generation_defaults.get("top_p", 0.9), ge=0.0, le=1.0, description="核采样参数")
+    stream: bool = Field(default=_generation_defaults.get("stream", False), description="是否流式输出")
 
 class BatchRequest(BaseModel):
     """批量处理请求模型"""
     prompts: List[str] = Field(..., description="提示词列表")
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="生成温度")
-    max_tokens: int = Field(default=512, ge=1, le=4096, description="最大生成token数")
-    top_p: float = Field(default=0.9, ge=0.0, le=1.0, description="核采样参数")
+    temperature: float = Field(default=_generation_defaults.get("temperature", 0.7), ge=0.0, le=2.0, description="生成温度")
+    max_tokens: int = Field(default=_generation_defaults.get("max_tokens", 512), ge=1, le=4096, description="最大生成token数")
+    top_p: float = Field(default=_generation_defaults.get("top_p", 0.9), ge=0.0, le=1.0, description="核采样参数")
 
 class ChatResponse(BaseModel):
     """聊天响应模型"""
@@ -197,32 +209,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def load_model(use_merged_model: bool = True):
-    """加载模型 - 通过参数控制使用基座模型或合并模型"""
+def load_model(use_merged_model: bool = True, use_vllm: bool = True):
+    """加载模型 - 通过参数控制使用基座模型或合并模型，以及推理引擎"""
     global chat_model, model_loaded
     
     try:
-        # 定义模型路径
-        base_model_path = LOCAL_RUN_DIR / MODEL_PATHS["base_model"]
-        merged_model_path = LOCAL_RUN_DIR / MODEL_PATHS["merged_model"]
+        # 从配置管理器获取模型参数
+        model_args = config_manager.get_model_args(use_merged=use_merged_model, use_vllm=use_vllm)
         
-        # 构建模型参数
-        model_args = {
-            "template": "llama3",
-            "trust_remote_code": True,
-        }
+        # 检查模型文件是否存在
+        model_path = LOCAL_RUN_DIR / model_args["model_name_or_path"]
+        if not model_path.exists():
+            raise FileNotFoundError(f"模型路径不存在: {model_path}")
         
-        # 根据参数选择模型
-        if use_merged_model and merged_model_path.exists():
-            # 使用合并后的微调模型
-            model_args["model_name_or_path"] = str(merged_model_path)
-            logger.info(f"使用合并后的微调模型: {merged_model_path}")
-        else:
-            # 使用基础模型
-            if not base_model_path.exists():
-                raise FileNotFoundError(f"基础模型路径不存在: {base_model_path}")
-            model_args["model_name_or_path"] = str(base_model_path)
-            logger.info(f"使用基础模型: {base_model_path}")
+        logger.info(f"使用模型: {model_path}")
+        logger.info(f"使用模板: {model_args['template']}")
+        logger.info(f"使用推理引擎: {model_args['infer_backend']}")
         
         # 创建聊天模型
         chat_model = ChatModel(args=model_args)
@@ -242,7 +244,8 @@ async def startup_event():
     try:
         # 从环境变量获取模型选择参数
         use_merged = os.getenv("USE_MERGED_MODEL", "true").lower() == "true"
-        load_model(use_merged_model=use_merged)
+        use_vllm = os.getenv("USE_VLLM", "true").lower() == "true"
+        load_model(use_merged_model=use_merged, use_vllm=use_vllm)
         logger.info("FastAPI 服务启动成功！")
     except Exception as e:
         logger.error(f"服务启动失败: {e}")
@@ -261,10 +264,11 @@ async def root():
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """健康检查"""
+    model_info = config_manager.get_model_info()
     return HealthResponse(
         status="healthy" if model_loaded else "unhealthy",
         model_loaded=model_loaded,
-        model_name="Llama-3.2-1B-Instruct" if model_loaded else None
+        model_name=model_info["model_name"] if model_loaded else None
     )
 
 @app.post("/chat", response_model=ChatResponse)
@@ -318,7 +322,7 @@ async def chat(request: ChatRequest):
                 "completion_tokens": output_tokens,
                 "total_tokens": input_tokens + output_tokens
             },
-            model="Llama-3.2-1B-Instruct"
+            model=config_manager.get_model_info()["model_name"]
         )
         
     except Exception as e:
@@ -367,7 +371,7 @@ async def generate_text(request: TextGenerationRequest):
                 "completion_tokens": output_tokens,
                 "total_tokens": input_tokens + output_tokens
             },
-            model="Llama-3.2-1B-Instruct"
+            model=config_manager.get_model_info()["model_name"]
         )
         
     except Exception as e:
@@ -411,7 +415,7 @@ async def batch_generate(request: BatchRequest):
                 "completion_tokens": total_output_tokens,
                 "total_tokens": total_input_tokens + total_output_tokens
             },
-            model="Llama-3.2-1B-Instruct"
+            model=config_manager.get_model_info()["model_name"]
         )
         
     except Exception as e:
@@ -424,33 +428,39 @@ async def model_info():
     if not model_loaded:
         raise HTTPException(status_code=503, detail="模型未加载")
     
-    # 检查当前使用的模型类型
-    base_model_path = LOCAL_RUN_DIR / MODEL_PATHS["base_model"]
-    merged_model_path = LOCAL_RUN_DIR / MODEL_PATHS["merged_model"]
+    # 从配置管理器获取模型信息
+    model_info = config_manager.get_model_info()
+    model_paths = get_model_paths()
     
     # 从环境变量获取当前模型选择
     use_merged = os.getenv("USE_MERGED_MODEL", "true").lower() == "true"
+    use_vllm = os.getenv("USE_VLLM", "true").lower() == "true"
     
-    model_info = {
-        "model_name": "Llama-3.2-1B-Instruct",
-        "template": "llama3",
-        "status": "loaded"
+    # 构建返回信息
+    info = {
+        "model_name": model_info["model_name"],
+        "template": model_info["template"],
+        "status": "loaded",
+        "inference_engine": "vllm" if use_vllm else "huggingface",
+        "description": model_info["description"]
     }
     
+    # 检查模型类型
+    merged_model_path = LOCAL_RUN_DIR / model_paths["merged_model"]
     if use_merged and merged_model_path.exists():
-        model_info.update({
+        info.update({
             "model_type": "merged",
             "model_path": str(merged_model_path),
             "description": "使用合并后的微调模型"
         })
     else:
-        model_info.update({
+        info.update({
             "model_type": "base",
-            "model_path": str(base_model_path),
+            "model_path": str(LOCAL_RUN_DIR / model_paths["base_model"]),
             "description": "使用基础模型"
         })
     
-    return model_info
+    return info
 
 def main():
     """主函数：启动前检查并启动服务"""
@@ -458,15 +468,23 @@ def main():
     
     # 解析命令行参数
     parser = argparse.ArgumentParser(description="LLaMA-Factory FastAPI 服务")
-    parser.add_argument("--use-base", action="store_true", default=False, help="使用基础模型（默认true）")
+    parser.add_argument("--use-base", action="store_true", default=False, help="使用基础模型")
     parser.add_argument("--use-merged", action="store_true", help="使用合并模型")
-    parser.add_argument("--port", type=int, default=8000, help="服务端口（默认8000）")
-    parser.add_argument("--host", default="0.0.0.0", help="服务主机（默认0.0.0.0）")
+    parser.add_argument("--use-vllm", action="store_true", default=False, help="使用vLLM推理引擎")
+    parser.add_argument("--use-hf", action="store_true", help="使用HuggingFace推理引擎")
+    parser.add_argument("--port", type=int, default=_service_config.get("port", 8000), help=f"服务端口（默认{_service_config.get('port', 8000)}）")
+    parser.add_argument("--host", default=_service_config.get("host", "0.0.0.0"), help=f"服务主机（默认{_service_config.get('host', '0.0.0.0')}）")
     args = parser.parse_args()
     
-    # 设置环境变量 - 优先使用合并模型，如果指定了 --use-merged
-    use_merged = args.use_merged or (not args.use_base)
+    # 设置环境变量 - 从配置文件获取默认值，命令行参数优先
+    default_use_merged = _service_config.get("default_use_merged", True)
+    default_use_vllm = _service_config.get("default_use_vllm", True)
+    
+    use_merged = args.use_merged or (not args.use_base and default_use_merged)
+    use_vllm = (args.use_vllm or (not args.use_hf and default_use_vllm))
+    
     os.environ["USE_MERGED_MODEL"] = "true" if use_merged else "false"
+    os.environ["USE_VLLM"] = "true" if use_vllm else "false"
     
     print("🔍 正在检查环境...")
     
@@ -491,6 +509,11 @@ def main():
         print("📋 模型选择: 合并模型（如果存在）")
     else:
         print("📋 模型选择: 基础模型")
+    
+    if use_vllm:
+        print("🚀 推理引擎: vLLM")
+    else:
+        print("🚀 推理引擎: HuggingFace")
     
     try:
         # 启动服务

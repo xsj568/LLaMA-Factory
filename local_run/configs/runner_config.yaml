@@ -7,17 +7,17 @@
 
 # ===== 默认：使用示例训练 YAML 启动训练 =====
 #command: train
-#config: llama3.2_lora_sft.yaml #qwen2.5_lora_sft.yaml
-#args:
-#  cache_dir: hf_cache
-#  dataset_dir: ../data
+config: qwen3_lora_sft.yaml #llama3.2_lora_sft.yaml #qwen3_lora_sft.yaml
+args:
+  cache_dir: hf_cache
+  dataset_dir: ../data
 
 # ===== 模型合并 (LoRA 适配器合并到基础模型) =====
- command: export
- config: llama3.2_lora_sft_merge.yaml
- args:
-   cache_dir: hf_cache
-   dataset_dir: ../data
+# command: export
+# config: llama3.2_lora_sft_merge.yaml
+# args:
+#   cache_dir: hf_cache
+#   dataset_dir: ../data
 
 # ============================================================================
 # 其他场景模板（将其改为生效：把上面三行替换为下述任一块的内容）
@@ -79,6 +79,7 @@
 #   adapter_path: saves/llama3.2-1b-lora-sft  # LoRA适配器路径（可选）
 #   template: llama3  # 对话模板（可选）
 #   trust_remote_code: true  # 信任远程代码（透传）
+#   infer_backend: vllm  # 使用vLLM推理引擎
 
 # Web 聊天（使用任务 YAML）
 # command: webchat
@@ -94,6 +95,7 @@
 #   adapter_path: saves/llama3-1b/lora/sft   # 可选
 #   template: llama3                          # 可选
 #   trust_remote_code: true
+#   infer_backend: vllm  # 使用vLLM推理引擎
 
 # Web UI（忽略 config，仅 args 可选）
 # command: webui
@@ -117,6 +119,7 @@
 #   port: 8000  # 服务端口
 #   host: 0.0.0.0  # 服务主机
 #   trust_remote_code: true  # 信任远程代码
+#   infer_backend: vllm  # 使用vLLM推理引擎
 
 # FastAPI 服务（推荐）
 # 使用自定义的 FastAPI 服务，提供更丰富的 API 接口

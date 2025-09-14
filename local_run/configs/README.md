@@ -82,7 +82,7 @@ max_samples: 1000     # 最大样本数 (测试时可设为 10)
 修改 `runner_config.yaml` 中的 `config` 字段：
 ```yaml
 config: llama3.2_lora_sft.yaml  # Llama 模型
-# config: qwen2.5_lora_sft.yaml  # Qwen 模型
+# config: qwen3_lora_sft.yaml  # Qwen 模型
 ```
 
 ### 2. 调整训练参数
