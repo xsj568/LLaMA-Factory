@@ -7,17 +7,17 @@
 
 # ===== 默认：使用示例训练 YAML 启动训练 =====
 #command: train
-config: qwen3_lora_sft.yaml #llama3.2_lora_sft.yaml #qwen3_lora_sft.yaml
-args:
-  cache_dir: hf_cache
-  dataset_dir: ../data
+#config: qwen3_lora_sft.yaml #llama3.2_lora_sft.yaml #qwen3_lora_sft.yaml
+#args:
+#  cache_dir: hf_cache
+#  dataset_dir: ../data
 
 # ===== 模型合并 (LoRA 适配器合并到基础模型) =====
-# command: export
-# config: llama3.2_lora_sft_merge.yaml
-# args:
-#   cache_dir: hf_cache
-#   dataset_dir: ../data
+ command: export
+ config: qwen3_lora_sft_merge.yaml #llama3.2_lora_sft_merge.yaml
+ args:
+   cache_dir: hf_cache
+   dataset_dir: ../data
 
 # ============================================================================
 # 其他场景模板（将其改为生效：把上面三行替换为下述任一块的内容）
