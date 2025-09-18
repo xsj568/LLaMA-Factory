@@ -1,0 +1,61 @@
+[
+  { "key": "topic_001", "query": "What is machine learning?", "document": "Machine learning is a field of AI focused on learning patterns from data.", "rel": 0.95, "weight": 1.0 },
+  { "key": "topic_001", "query": "What is machine learning?", "document": "Supervised learning uses labeled data to learn mappings from inputs to outputs.", "rel": 0.85, "weight": 1.0 },
+  { "key": "topic_001", "query": "What is machine learning?", "document": "Unsupervised learning discovers hidden structure without labels (e.g., clustering).", "rel": 0.8, "weight": 1.0 },
+  { "key": "topic_001", "query": "What is machine learning?", "document": "Reinforcement learning optimizes actions through trial and reward signals.", "rel": 0.78, "weight": 1.0 },
+  { "key": "topic_001", "query": "What is machine learning?", "document": "Cooking recipes are unrelated to machine learning models.", "rel": 0.05, "weight": 1.0 },
+
+  { "key": "topic_002", "query": "How does deep learning work?", "document": "Deep learning stacks layers of neural networks to learn hierarchical features.", "rel": 0.95, "weight": 1.0 },
+  { "key": "topic_002", "query": "How does deep learning work?", "document": "Backpropagation computes gradients to update weights via chain rule.", "rel": 0.86, "weight": 1.0 },
+  { "key": "topic_002", "query": "How does deep learning work?", "document": "Activation functions like ReLU introduce non-linearity.", "rel": 0.82, "weight": 1.0 },
+  { "key": "topic_002", "query": "How does deep learning work?", "document": "Batch normalization stabilizes training by normalizing activations.", "rel": 0.8, "weight": 1.0 },
+  { "key": "topic_002", "query": "How does deep learning work?", "document": "Tea brewing instructions are irrelevant to deep learning.", "rel": 0.04, "weight": 1.0 },
+
+  { "key": "topic_003", "query": "Python programming language", "document": "Python is a high-level language valued for readability and rich ecosystems.", "rel": 0.92, "weight": 1.0 },
+  { "key": "topic_003", "query": "Python programming language", "document": "Python supports OOP, functional, and procedural paradigms.", "rel": 0.88, "weight": 1.0 },
+  { "key": "topic_003", "query": "Python programming language", "document": "The standard library provides batteries-included utilities for many tasks.", "rel": 0.83, "weight": 1.0 },
+  { "key": "topic_003", "query": "Python programming language", "document": "PEP 8 recommends consistent code style for Python programs.", "rel": 0.78, "weight": 1.0 },
+  { "key": "topic_003", "query": "Python programming language", "document": "Volcanic rocks composition is unrelated to Python.", "rel": 0.03, "weight": 1.0 },
+
+  { "key": "topic_004", "query": "Transformers library basics", "document": "Hugging Face Transformers provides pretrained models and tokenizers.", "rel": 0.93, "weight": 1.0 },
+  { "key": "topic_004", "query": "Transformers library basics", "document": "AutoModel and AutoTokenizer select classes based on checkpoints.", "rel": 0.85, "weight": 1.0 },
+  { "key": "topic_004", "query": "Transformers library basics", "document": "Trainer API simplifies training loops with callbacks and logging.", "rel": 0.8, "weight": 1.0 },
+  { "key": "topic_004", "query": "Transformers library basics", "document": "Datasets can be loaded and processed via the datasets library.", "rel": 0.78, "weight": 1.0 },
+  { "key": "topic_004", "query": "Transformers library basics", "document": "Shoe sizes in EU/US are unrelated to Transformers library.", "rel": 0.02, "weight": 1.0 },
+
+  { "key": "topic_005", "query": "Information retrieval ranking", "document": "Learning to rank optimizes ordering of documents for a query.", "rel": 0.94, "weight": 1.0 },
+  { "key": "topic_005", "query": "Information retrieval ranking", "document": "Pairwise methods compare positive and negative document pairs.", "rel": 0.87, "weight": 1.0 },
+  { "key": "topic_005", "query": "Information retrieval ranking", "document": "Listwise methods optimize metrics like NDCG directly.", "rel": 0.84, "weight": 1.0 },
+  { "key": "topic_005", "query": "Information retrieval ranking", "document": "BM25 is a strong term-matching baseline.", "rel": 0.76, "weight": 1.0 },
+  { "key": "topic_005", "query": "Information retrieval ranking", "document": "Weather forecasts are irrelevant to ranking methods.", "rel": 0.01, "weight": 1.0 },
+
+  { "key": "topic_006", "query": "Vector similarity", "document": "Cosine similarity measures angle between normalized vectors.", "rel": 0.93, "weight": 1.0 },
+  { "key": "topic_006", "query": "Vector similarity", "document": "Dot product scales with vector magnitudes as well as alignment.", "rel": 0.82, "weight": 1.0 },
+  { "key": "topic_006", "query": "Vector similarity", "document": "Euclidean distance measures absolute differences in space.", "rel": 0.78, "weight": 1.0 },
+  { "key": "topic_006", "query": "Vector similarity", "document": "Cosine distance is 1 - cosine similarity.", "rel": 0.75, "weight": 1.0 },
+  { "key": "topic_006", "query": "Vector similarity", "document": "Dessert recipes are not relevant to vector similarity.", "rel": 0.02, "weight": 1.0 },
+
+  { "key": "topic_007", "query": "Tokenization concepts", "document": "WordPiece splits words into subword units for open-vocabulary modeling.", "rel": 0.9, "weight": 1.0 },
+  { "key": "topic_007", "query": "Tokenization concepts", "document": "Byte-Pair Encoding merges frequent byte pairs iteratively.", "rel": 0.86, "weight": 1.0 },
+  { "key": "topic_007", "query": "Tokenization concepts", "document": "SentencePiece trains subword models on raw text.", "rel": 0.83, "weight": 1.0 },
+  { "key": "topic_007", "query": "Tokenization concepts", "document": "Whitespace tokenization is brittle for many languages.", "rel": 0.75, "weight": 1.0 },
+  { "key": "topic_007", "query": "Tokenization concepts", "document": "Sports scores are unrelated to tokenization.", "rel": 0.01, "weight": 1.0 },
+
+  { "key": "topic_008", "query": "BERT architecture", "document": "BERT uses bidirectional self-attention across transformer encoder layers.", "rel": 0.94, "weight": 1.0 },
+  { "key": "topic_008", "query": "BERT architecture", "document": "[CLS] token embedding often represents sequence-level information.", "rel": 0.86, "weight": 1.0 },
+  { "key": "topic_008", "query": "BERT architecture", "document": "Pretraining tasks include MLM and NSP (in original BERT).", "rel": 0.82, "weight": 1.0 },
+  { "key": "topic_008", "query": "BERT architecture", "document": "Fine-tuning adapts the pretrained backbone to downstream tasks.", "rel": 0.8, "weight": 1.0 },
+  { "key": "topic_008", "query": "BERT architecture", "document": "Furniture assembly steps are unrelated to BERT.", "rel": 0.02, "weight": 1.0 },
+
+  { "key": "topic_009", "query": "Evaluation metrics", "document": "NDCG@k rewards placing highly relevant documents near the top.", "rel": 0.93, "weight": 1.0 },
+  { "key": "topic_009", "query": "Evaluation metrics", "document": "MAP aggregates average precision across queries.", "rel": 0.86, "weight": 1.0 },
+  { "key": "topic_009", "query": "Evaluation metrics", "document": "Recall measures the fraction of relevant documents retrieved.", "rel": 0.8, "weight": 1.0 },
+  { "key": "topic_009", "query": "Evaluation metrics", "document": "Precision measures the fraction of retrieved documents that are relevant.", "rel": 0.79, "weight": 1.0 },
+  { "key": "topic_009", "query": "Evaluation metrics", "document": "Knitting tips are irrelevant to IR metrics.", "rel": 0.01, "weight": 1.0 },
+
+  { "key": "topic_010", "query": "Regularization in neural nets", "document": "Dropout randomly zeros units to reduce overfitting.", "rel": 0.9, "weight": 1.0 },
+  { "key": "topic_010", "query": "Regularization in neural nets", "document": "Weight decay penalizes large weights via L2 regularization.", "rel": 0.86, "weight": 1.0 },
+  { "key": "topic_010", "query": "Regularization in neural nets", "document": "Early stopping halts training when validation loss stops improving.", "rel": 0.83, "weight": 1.0 },
+  { "key": "topic_010", "query": "Regularization in neural nets", "document": "Data augmentation improves generalization by increasing data diversity.", "rel": 0.8, "weight": 1.0 },
+  { "key": "topic_010", "query": "Regularization in neural nets", "document": "Travel itineraries are not relevant to regularization.", "rel": 0.02, "weight": 1.0 }
+]

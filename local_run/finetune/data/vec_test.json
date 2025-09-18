@@ -1,0 +1,32 @@
+[
+  { "query": "Optimization basics", "document": "Adam optimizer uses adaptive learning rates and momentum terms.", "rel": 0.92, "weight": 1.0 },
+  { "query": "Optimization basics", "document": "SGD with momentum helps escape shallow local minima.", "rel": 0.85, "weight": 1.0 },
+  { "query": "Optimization basics", "document": "Learning rate scheduling can improve convergence and stability.", "rel": 0.8, "weight": 1.0 },
+  { "query": "Optimization basics", "document": "Gradient clipping prevents exploding gradients.", "rel": 0.78, "weight": 1.0 },
+  { "query": "Optimization basics", "document": "Gardening tips are unrelated to optimization algorithms.", "rel": 0.01, "weight": 1.0 },
+
+  { "query": "Pairwise ranking loss", "document": "Hinge loss enforces a margin between positive and negative scores.", "rel": 0.91, "weight": 1.0 },
+  { "query": "Pairwise ranking loss", "document": "Logistic pairwise loss models probability that positive outranks negative.", "rel": 0.85, "weight": 1.0 },
+  { "query": "Pairwise ranking loss", "document": "Sample weighting emphasizes more important training examples.", "rel": 0.8, "weight": 1.0 },
+  { "query": "Pairwise ranking loss", "document": "Hard negative mining can improve training efficiency.", "rel": 0.78, "weight": 1.0 },
+  { "query": "Pairwise ranking loss", "document": "Movie reviews are unrelated to pairwise loss.", "rel": 0.01, "weight": 1.0 },
+
+  { "query": "Data preprocessing", "document": "Lowercasing and punctuation handling can affect tokenization.", "rel": 0.88, "weight": 1.0 },
+  { "query": "Data preprocessing", "document": "Truncation and padding control maximum sequence length.", "rel": 0.84, "weight": 1.0 },
+  { "query": "Data preprocessing", "document": "Deduplication reduces leakage from near-duplicate texts.", "rel": 0.79, "weight": 1.0 },
+  { "query": "Data preprocessing", "document": "Normalization of unicode improves consistency.", "rel": 0.76, "weight": 1.0 },
+  { "query": "Data preprocessing", "document": "Bird migration is unrelated to text preprocessing.", "rel": 0.02, "weight": 1.0 },
+
+  { "query": "Inference optimization", "document": "Batching multiple examples improves throughput on GPUs.", "rel": 0.9, "weight": 1.0 },
+  { "query": "Inference optimization", "document": "Mixed precision uses FP16 where safe to speed up compute.", "rel": 0.85, "weight": 1.0 },
+  { "query": "Inference optimization", "document": "Quantization reduces model size and may speed up CPU inference.", "rel": 0.8, "weight": 1.0 },
+  { "query": "Inference optimization", "document": "Caching encodings avoids redundant tokenization.", "rel": 0.77, "weight": 1.0 },
+  { "query": "Inference optimization", "document": "Mountain climbing tips are unrelated to inference.", "rel": 0.01, "weight": 1.0 },
+
+  { "query": "Serving models", "document": "FastAPI can host REST endpoints for model inference.", "rel": 0.92, "weight": 1.0 },
+  { "query": "Serving models", "document": "Pydantic validates request schemas for robustness.", "rel": 0.86, "weight": 1.0 },
+  { "query": "Serving models", "document": "Uvicorn runs ASGI apps efficiently with uvloop.", "rel": 0.82, "weight": 1.0 },
+  { "query": "Serving models", "document": "Health checks help monitor service availability.", "rel": 0.79, "weight": 1.0 },
+  { "query": "Serving models", "document": "Grocery lists are irrelevant to serving infra.", "rel": 0.01, "weight": 1.0 }
+]
+
