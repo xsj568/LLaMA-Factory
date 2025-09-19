@@ -43,10 +43,24 @@ from tqdm import tqdm
 import argparse
 from collections import defaultdict
 from datetime import datetime
+import inspect
+import traceback
 
-# 设置日志
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# 设置日志格式，包含时间、行数、函数名
+def get_logger():
+    logger = logging.getLogger(__name__)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            '%(asctime)s | %(levelname)-8s | %(filename)s:%(lineno)d | %(funcName)s() | %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+    return logger
+
+logger = get_logger()
 
 
 class VectorDataset(Dataset):
@@ -73,19 +87,27 @@ class VectorDataset(Dataset):
         
     def _load_data(self, data_path: str) -> List[Dict]:
         """加载数据"""
+        logger.info(f"开始加载数据文件: {data_path}")
         data = []
         
-        if data_path.endswith('.json'):
-            with open(data_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        elif data_path.endswith('.jsonl'):
-            with open(data_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    data.append(json.loads(line.strip()))
-        else:
-            raise ValueError("支持的数据格式: .json, .jsonl")
+        try:
+            if data_path.endswith('.json'):
+                logger.info("检测到JSON格式文件")
+                with open(data_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            elif data_path.endswith('.jsonl'):
+                logger.info("检测到JSONL格式文件")
+                with open(data_path, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        data.append(json.loads(line.strip()))
+            else:
+                logger.error(f"不支持的数据格式: {data_path}")
+                raise ValueError("支持的数据格式: .json, .jsonl")
+        except Exception as e:
+            logger.error(f"加载数据文件失败: {e}")
+            raise
             
-        logger.info(f"加载数据: {len(data)} 条记录")
+        logger.info(f"数据加载完成: {len(data)} 条记录")
         return data
     
     def __len__(self):
@@ -152,15 +174,19 @@ class BertVectorModel(nn.Module):
             model_name: BERT模型名称
             embedding_dim: 嵌入维度
         """
+        logger.info(f"初始化BertVectorModel: model_name={model_name}, embedding_dim={embedding_dim}")
         super().__init__()
         self.bert = BertModel.from_pretrained(model_name)
         self.embedding_dim = embedding_dim
         
         # 可选的投影层，用于调整嵌入维度
         if embedding_dim != 768:
+            logger.info(f"添加投影层: 768 -> {embedding_dim}")
             self.projection = nn.Linear(768, embedding_dim)
         else:
+            logger.info("使用Identity投影层")
             self.projection = nn.Identity()
+        logger.info("BertVectorModel初始化完成")
     
     def forward(self, input_ids, attention_mask):
         """
@@ -279,10 +305,12 @@ class VectorTrainer:
     """
     
     def __init__(self, model, tokenizer, device='cuda'):
+        logger.info(f"初始化VectorTrainer: device={device}")
         self.model = model.to(device)
         self.tokenizer = tokenizer
         self.device = device
         self.criterion = WeightedMSELoss()
+        logger.info("VectorTrainer初始化完成")
         
     def compute_similarity_score(self, query_vector, doc_vector):
         """计算query和document的相似度分数"""
@@ -292,10 +320,13 @@ class VectorTrainer:
     
     def train_epoch(self, dataloader, optimizer, scheduler=None):
         """训练一个epoch"""
+        logger.info("开始训练一个epoch")
         self.model.train()
         total_loss = 0
+        batch_count = 0
         
         for batch in tqdm(dataloader, desc="Training"):
+            batch_count += 1
             # 移动数据到设备
             query_input_ids = batch['query_input_ids'].to(self.device)
             query_attention_mask = batch['query_attention_mask'].to(self.device)
@@ -323,11 +354,18 @@ class VectorTrainer:
                 scheduler.step()
             
             total_loss += loss.item()
+            
+            # 每100个batch记录一次
+            if batch_count % 100 == 0:
+                logger.info(f"训练进度: batch {batch_count}, 当前损失: {loss.item():.4f}")
         
-        return total_loss / len(dataloader)
+        avg_loss = total_loss / len(dataloader)
+        logger.info(f"Epoch训练完成，平均损失: {avg_loss:.4f}")
+        return avg_loss
     
     def evaluate(self, dataloader, k=10):
         """评估模型: 返回(平均加权MSE损失, 按query分组的NDCG@k均值)"""
+        logger.info(f"开始评估模型，NDCG@k={k}")
         self.model.eval()
         total_loss = 0
         # 按query分组收集
@@ -366,10 +404,12 @@ class VectorTrainer:
                         query_to_targets[q].append(float(tars_np[i]))
         
         avg_loss = total_loss / len(dataloader)
+        logger.info(f"评估损失计算完成: {avg_loss:.4f}")
         
         # 计算NDCG@k (对含>=2文档的query求均值)
         ndcg_mean = 0.0
         if len(query_to_scores) > 0:
+            logger.info(f"开始计算NDCG@k，共{len(query_to_scores)}个query")
             ndcgs = []
             for q, scores in query_to_scores.items():
                 targets = query_to_targets[q]
@@ -379,18 +419,17 @@ class VectorTrainer:
                 targets_arr = np.asarray(targets, dtype=np.float32).reshape(1, -1)
                 try:
                     ndcgs.append(ndcg_score(targets_arr, scores_arr, k=min(k, scores_arr.shape[1])))
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"计算NDCG时出错: {e}")
                     continue
             ndcg_mean = float(np.mean(ndcgs)) if ndcgs else 0.0
+            logger.info(f"NDCG@k计算完成: {ndcg_mean:.4f} (基于{len(ndcgs)}个有效query)")
+        else:
+            logger.warning("没有找到query文本，无法计算NDCG")
         
+        logger.info(f"评估完成: loss={avg_loss:.4f}, NDCG@{k}={ndcg_mean:.4f}")
         return avg_loss, ndcg_mean
     
-    def save_model(self, save_path):
-        """保存模型"""
-        os.makedirs(save_path, exist_ok=True)
-        self.model.save_pretrained(save_path)
-        self.tokenizer.save_pretrained(save_path)
-        logger.info(f"模型已保存到: {save_path}")
 
 
 ## 删除了示例数据创建逻辑，统一从本地JSON加载
@@ -446,6 +485,10 @@ def select_best_checkpoint(output_dir: str):
 
 
 def train_fn(args):
+    logger.info("=" * 50)
+    logger.info("开始训练流程")
+    logger.info("=" * 50)
+    
     # 直接使用显式提供的数据集
     train_path = args.train_path
     val_path = args.val_path
@@ -459,6 +502,10 @@ def train_fn(args):
         logger.error(f"验证集不存在: {val_path}")
         return
 
+    logger.info(f"训练参数: epochs={args.num_epochs}, batch_size={args.batch_size}, lr={args.learning_rate}")
+    logger.info(f"模型: {args.model_name}, 设备: {args.device}")
+    logger.info(f"保存路径: {args.save_path}")
+
     logger.info("初始化tokenizer和模型...")
     tokenizer = BertTokenizer.from_pretrained(args.model_name)
     model = BertVectorModel(args.model_name)
@@ -468,18 +515,20 @@ def train_fn(args):
     val_ds = VectorDataset(val_path, tokenizer, args.max_length)
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False)
+    logger.info(f"数据加载器创建完成: train_batches={len(train_loader)}, val_batches={len(val_loader)}")
 
     trainer = VectorTrainer(model, tokenizer, args.device)
     optimizer = AdamW(model.parameters(), lr=args.learning_rate)
     total_steps = len(train_loader) * args.num_epochs
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=total_steps)
+    logger.info(f"优化器和调度器初始化完成: total_steps={total_steps}, warmup_steps={args.warmup_steps}")
 
     os.makedirs(args.save_path, exist_ok=True)
     logger.info("开始训练...")
     global_step = 0
     best_val = float('inf')
     for epoch in range(args.num_epochs):
-        logger.info(f"Epoch {epoch + 1}/{args.num_epochs}")
+        logger.info(f"开始 Epoch {epoch + 1}/{args.num_epochs}")
         model.train()
         running_loss = 0.0
         for batch in tqdm(train_loader, desc=f"Training E{epoch+1}"):
@@ -510,56 +559,89 @@ def train_fn(args):
                 logger.info(f"保存checkpoint: {ckpt_dir} (train_loss={train_loss_avg:.4f}, val_loss={val_loss:.4f})")
                 if val_loss < best_val:
                     best_val = val_loss
+                    logger.info(f"新的最佳验证损失: {best_val:.4f}")
 
         # epoch end
         val_loss, ndcg = trainer.evaluate(val_loader)
         logger.info(f"Epoch {epoch+1} 结束: train_loss={running_loss/len(train_loader):.4f}, val_loss={val_loss:.4f}, NDCG@10={ndcg:.4f}")
         ckpt_dir = save_checkpoint(args.save_path, global_step, model, tokenizer, running_loss/len(train_loader), val_loss)
         logger.info(f"保存epoch末尾checkpoint: {ckpt_dir}")
+    
+    logger.info("=" * 50)
+    logger.info("训练流程完成")
+    logger.info("=" * 50)
 
 
 def evaluate_fn(args):
+    logger.info("=" * 50)
+    logger.info("开始评估流程")
+    logger.info("=" * 50)
+    
     # 待评估checkpoint集合
     ckpt = select_best_checkpoint(args.save_path) if args.select_best else None
     target_ckpts = []
     if args.checkpoint_dir:
+        logger.info(f"评估指定checkpoint: {args.checkpoint_dir}")
         target_ckpts = [(args.checkpoint_dir, {})]
     elif ckpt is not None:
+        logger.info(f"评估最佳checkpoint: {ckpt[0]}")
         target_ckpts = [ckpt]
     else:
+        logger.info("评估所有checkpoint")
         target_ckpts = list_checkpoints(args.save_path)
+    
     if not target_ckpts:
         logger.error("未找到可评估的checkpoint")
         return
+    
+    logger.info(f"找到{len(target_ckpts)}个checkpoint待评估")
 
     # 测试集
     if not args.test_path or not os.path.exists(args.test_path):
         logger.error("请提供有效的 --test_path")
         return
 
+    logger.info(f"加载测试集: {args.test_path}")
     tokenizer = BertTokenizer.from_pretrained(args.model_name)
     test_ds = VectorDataset(args.test_path, tokenizer, args.max_length)
     test_loader = DataLoader(test_ds, batch_size=args.batch_size, shuffle=False)
+    logger.info(f"测试集加载完成: {len(test_ds)}条数据, {len(test_loader)}个batch")
 
     results = []
-    for path, _ in target_ckpts:
+    for i, (path, _) in enumerate(target_ckpts, 1):
+        logger.info(f"评估checkpoint {i}/{len(target_ckpts)}: {path}")
         model = BertVectorModel.from_pretrained(path).to(args.device)
         trainer = VectorTrainer(model, tokenizer, args.device)
         loss, ndcg = trainer.evaluate(test_loader)
         results.append({"checkpoint": path, "loss": float(loss), "ndcg@10": float(ndcg)})
-        logger.info(f"评估 {path}: loss={loss:.4f}, NDCG@10={ndcg:.4f}")
+        logger.info(f"评估完成: loss={loss:.4f}, NDCG@10={ndcg:.4f}")
 
     best = sorted(results, key=lambda x: (x['loss'], -x['ndcg@10']))[0]
-    with open(os.path.join(args.save_path, 'evaluation_summary.json'), 'w', encoding='utf-8') as f:
+    logger.info(f"评估结果汇总: 共{len(results)}个模型")
+    for result in results:
+        logger.info(f"  {result['checkpoint']}: loss={result['loss']:.4f}, NDCG@10={result['ndcg@10']:.4f}")
+    
+    summary_path = os.path.join(args.save_path, 'evaluation_summary.json')
+    with open(summary_path, 'w', encoding='utf-8') as f:
         json.dump({"all": results, "best": best}, f, ensure_ascii=False, indent=2)
+    logger.info(f"评估摘要已保存到: {summary_path}")
     logger.info(f"最佳模型: {best['checkpoint']} (loss={best['loss']:.4f}, NDCG@10={best['ndcg@10']:.4f})")
+    
+    logger.info("=" * 50)
+    logger.info("评估流程完成")
+    logger.info("=" * 50)
 
 
 def deploy_fn(args):
+    logger.info("=" * 50)
+    logger.info("开始部署流程")
+    logger.info("=" * 50)
+    
     try:
         from fastapi import FastAPI
         from pydantic import BaseModel
         import uvicorn
+        logger.info("FastAPI依赖检查通过")
     except Exception as e:
         logger.error(f"FastAPI 依赖未安装: {e}")
         return
@@ -567,15 +649,19 @@ def deploy_fn(args):
     device = args.device
     model_dir = args.model_dir
     if not model_dir:
+        logger.info("未指定模型目录，自动选择最佳checkpoint")
         best = select_best_checkpoint(args.save_path)
         if best is None:
             logger.error("未找到最佳checkpoint用于部署")
             return
         model_dir = best[0]
+        logger.info(f"选择最佳checkpoint: {model_dir}")
 
+    logger.info(f"加载模型: {model_dir}")
     tokenizer = BertTokenizer.from_pretrained(model_dir)
     model = BertVectorModel.from_pretrained(model_dir).to(device)
     model.eval()
+    logger.info("模型加载完成，开始创建API服务")
 
     app = FastAPI(title="BERT Vector Service", version="1.0.0")
 
@@ -619,10 +705,15 @@ def deploy_fn(args):
             sim = torch.cosine_similarity(qv, dv, dim=1).item()
             return {"score": float(sim)}
 
+    logger.info(f"启动API服务: {args.host}:{args.port}")
+    logger.info("=" * 50)
+    logger.info("部署流程完成，服务已启动")
+    logger.info("=" * 50)
     uvicorn.run(app, host=args.host, port=args.port)
 
 
 def main():
+    logger.info("BERT向量化微调脚本启动")
     parser = argparse.ArgumentParser(description='BERT向量化微调脚本')
     parser.add_argument('--train_path', type=str, default='data/vec_train.json',
                        help='训练集路径')
@@ -668,6 +759,7 @@ def main():
                        help='服务端口')
     
     args = parser.parse_args()
+    logger.info(f"运行模式: {args.mode}")
     
     # 分派模式
     if args.mode == 'train':
@@ -676,6 +768,11 @@ def main():
         evaluate_fn(args)
     elif args.mode == 'deploy':
         deploy_fn(args)
+    else:
+        logger.error(f"未知的运行模式: {args.mode}")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        logger.error(f"向量微调模型错误: {traceback.format_exc()}")

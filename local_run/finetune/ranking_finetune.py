@@ -46,10 +46,26 @@ from pathlib import Path
 import random
 from collections import defaultdict
 from datetime import datetime
+import inspect
+import sys
+import traceback
 
-# 设置日志
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+
+# 设置日志格式，包含时间、行数、函数名
+def get_logger():
+    logger = logging.getLogger(__name__)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            '%(asctime)s | %(levelname)-8s | %(filename)s:%(lineno)d | %(funcName)s() | %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+    return logger
+
+logger = get_logger()
 
 
 class RankingDataset(Dataset):
@@ -74,6 +90,8 @@ class RankingDataset(Dataset):
             group_by_query: 是否按query分组
             max_pairs_per_query: 每个query的最大pair数量
         """
+        logger.info(f"初始化RankingDataset: data_path={data_path}, max_length={max_length}")
+        logger.info(f"分组设置: group_by_query={group_by_query}, max_pairs_per_query={max_pairs_per_query}")
         self.tokenizer = tokenizer
         self.max_length = max_length
         self.group_by_query = group_by_query
@@ -82,46 +100,69 @@ class RankingDataset(Dataset):
         self.data = self._load_data(data_path)
         
         if self.group_by_query:
+            logger.info("按query分组处理数据")
             self.query_groups = self._group_by_field()
             self.pairs = self._create_pairs()
         else:
+            logger.info("创建简单排序对")
             self.pairs = self._create_simple_pairs()
+        
+        logger.info(f"RankingDataset初始化完成，共{len(self.pairs)}个排序对")
     
     def _load_data(self, data_path: str) -> List[Dict]:
         """加载数据"""
+        logger.info(f"开始加载数据文件: {data_path}")
         data = []
         
-        if data_path.endswith('.json'):
-            with open(data_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        elif data_path.endswith('.jsonl'):
-            with open(data_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    data.append(json.loads(line.strip()))
-        else:
-            raise ValueError("支持的数据格式: .json, .jsonl")
+        try:
+            if data_path.endswith('.json'):
+                logger.info("检测到JSON格式文件")
+                with open(data_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            elif data_path.endswith('.jsonl'):
+                logger.info("检测到JSONL格式文件")
+                with open(data_path, 'r', encoding='utf-8') as f:
+                    for line_num, line in enumerate(f, 1):
+                        try:
+                            data.append(json.loads(line.strip()))
+                        except json.JSONDecodeError as e:
+                            logger.warning(f"第{line_num}行JSON解析失败: {e}")
+                            continue
+            else:
+                logger.error(f"不支持的数据格式: {data_path}")
+                raise ValueError("支持的数据格式: .json, .jsonl")
+        except FileNotFoundError:
+            logger.error(f"数据文件不存在: {data_path}")
+            raise
+        except Exception as e:
+            logger.error(f"加载数据文件时发生错误: {e}")
+            raise
             
-        logger.info(f"加载数据: {len(data)} 条记录")
+        logger.info(f"数据加载完成: {len(data)} 条记录")
         return data
     
     def _group_by_field(self) -> Dict[str, List[Dict]]:
         """按指定字段(默认key, 回退query)分组数据"""
+        logger.info(f"开始按{self.group_field}字段分组数据")
         groups = defaultdict(list)
         for item in self.data:
             key_value = item.get(self.group_field, item.get('query'))
             groups[key_value].append(item)
-        logger.info(f"按{self.group_field}分组: {len(groups)} 组")
+        logger.info(f"分组完成: {len(groups)} 个组，平均每组{len(self.data)/len(groups):.1f}条数据")
         return dict(groups)
     
     def _create_pairs(self) -> List[Dict]:
         """创建排序对"""
+        logger.info("开始创建排序对")
         pairs = []
+        total_queries = len(self.query_groups)
         
-        for query, docs in self.query_groups.items():
+        for query_idx, (query, docs) in enumerate(self.query_groups.items()):
             # 按相关性分数排序
             docs.sort(key=lambda x: x['rel'], reverse=True)
             
             # 创建正负样本对
+            query_pairs = 0
             for i in range(len(docs)):
                 for j in range(i + 1, len(docs)):
                     if docs[i]['rel'] > docs[j]['rel']:
@@ -134,14 +175,20 @@ class RankingDataset(Dataset):
                             'pos_weight': docs[i]['weight'],
                             'neg_weight': docs[j]['weight']
                         })
+                        query_pairs += 1
+            
+            # 每处理100个query记录一次进度
+            if (query_idx + 1) % 100 == 0:
+                logger.info(f"已处理{query_idx + 1}/{total_queries}个query，当前pairs数: {len(pairs)}")
             
             # 限制每个query的pair数量
             if len(pairs) > self.max_pairs_per_query * len(self.query_groups):
                 # 随机采样
                 random.shuffle(pairs)
                 pairs = pairs[:self.max_pairs_per_query * len(self.query_groups)]
+                logger.info(f"达到最大pairs限制，随机采样到{len(pairs)}个pairs")
         
-        logger.info(f"创建排序对: {len(pairs)} 个pairs")
+        logger.info(f"排序对创建完成: {len(pairs)} 个pairs")
         return pairs
     
     def _create_simple_pairs(self) -> List[Dict]:
@@ -181,56 +228,60 @@ class RankingDataset(Dataset):
         return len(self.pairs)
     
     def __getitem__(self, idx):
-        pair = self.pairs[idx]
-        
-        # 分别编码(兼容旧逻辑, 但训练将使用pair编码)
-        query_encoding = self.tokenizer(
-            pair['query'],
-            max_length=self.max_length,
-            padding='max_length',
-            truncation=True,
-            return_tensors='pt'
-        )
-        pos_doc_encoding = self.tokenizer(
-            pair['pos_doc'],
-            max_length=self.max_length,
-            padding='max_length',
-            truncation=True,
-            return_tensors='pt'
-        )
-        neg_doc_encoding = self.tokenizer(
-            pair['neg_doc'],
-            max_length=self.max_length,
-            padding='max_length',
-            truncation=True,
-            return_tensors='pt'
-        )
+        try:
+            pair = self.pairs[idx]
+            
+            # 分别编码(兼容旧逻辑, 但训练将使用pair编码)
+            query_encoding = self.tokenizer(
+                pair['query'],
+                max_length=self.max_length,
+                padding='max_length',
+                truncation=True,
+                return_tensors='pt'
+            )
+            pos_doc_encoding = self.tokenizer(
+                pair['pos_doc'],
+                max_length=self.max_length,
+                padding='max_length',
+                truncation=True,
+                return_tensors='pt'
+            )
+            neg_doc_encoding = self.tokenizer(
+                pair['neg_doc'],
+                max_length=self.max_length,
+                padding='max_length',
+                truncation=True,
+                return_tensors='pt'
+            )
 
-        # Pair编码: 将 query 与 doc 拼接为单条序列 [CLS] query [SEP] doc [SEP]
-        pos_pair = self.tokenizer(
-            pair['query'],
-            pair['pos_doc'],
-            max_length=self.max_length,
-            padding='max_length',
-            truncation=True,
-            return_tensors='pt'
-        )
-        neg_pair = self.tokenizer(
-            pair['query'],
-            pair['neg_doc'],
-            max_length=self.max_length,
-            padding='max_length',
-            truncation=True,
-            return_tensors='pt'
-        )
+            # Pair编码: 将 query 与 doc 拼接为单条序列 [CLS] query [SEP] doc [SEP]
+            pos_pair = self.tokenizer(
+                pair['query'],
+                pair['pos_doc'],
+                max_length=self.max_length,
+                padding='max_length',
+                truncation=True,
+                return_tensors='pt'
+            )
+            neg_pair = self.tokenizer(
+                pair['query'],
+                pair['neg_doc'],
+                max_length=self.max_length,
+                padding='max_length',
+                truncation=True,
+                return_tensors='pt'
+            )
+        except Exception as e:
+            logger.error(f"处理第{idx}个排序对时发生错误: {e}")
+            raise
         
         batch = {
-            'query_input_ids': query_encoding['input_ids'].squeeze(0),
-            'query_attention_mask': query_encoding['attention_mask'].squeeze(0),
-            'pos_doc_input_ids': pos_doc_encoding['input_ids'].squeeze(0),
-            'pos_doc_attention_mask': pos_doc_encoding['attention_mask'].squeeze(0),
-            'neg_doc_input_ids': neg_doc_encoding['input_ids'].squeeze(0),
-            'neg_doc_attention_mask': neg_doc_encoding['attention_mask'].squeeze(0),
+            #'query_input_ids': query_encoding['input_ids'].squeeze(0),
+            #'query_attention_mask': query_encoding['attention_mask'].squeeze(0),
+            #'pos_doc_input_ids': pos_doc_encoding['input_ids'].squeeze(0),
+            #'pos_doc_attention_mask': pos_doc_encoding['attention_mask'].squeeze(0),
+            #'neg_doc_input_ids': neg_doc_encoding['input_ids'].squeeze(0),
+            #'neg_doc_attention_mask': neg_doc_encoding['attention_mask'].squeeze(0),
             'pos_rel': torch.tensor(pair['pos_rel'], dtype=torch.float),
             'neg_rel': torch.tensor(pair['neg_rel'], dtype=torch.float),
             'pos_weight': torch.tensor(pair['pos_weight'], dtype=torch.float),
@@ -269,14 +320,17 @@ class BertRankingModel(nn.Module):
             model_name: BERT模型名称
             embedding_dim: 嵌入维度
         """
+        logger.info(f"初始化BertRankingModel: model_name={model_name}, embedding_dim={embedding_dim}")
         super().__init__()
         self.bert = BertModel.from_pretrained(model_name)
         self.embedding_dim = embedding_dim
         
         # 可选的投影层
         if embedding_dim != 768:
+            logger.info(f"添加投影层: 768 -> {embedding_dim}")
             self.projection = nn.Linear(768, embedding_dim)
         else:
+            logger.info("使用Identity投影层")
             self.projection = nn.Identity()
         
         # 排序头(向量拼接方式)
@@ -288,6 +342,7 @@ class BertRankingModel(nn.Module):
         )
         # Pair方式的排序头(单向量)
         self.pair_head = nn.Linear(embedding_dim, 1)
+        logger.info("BertRankingModel初始化完成")
     
     def forward(self, input_ids, attention_mask):
         """
@@ -493,75 +548,26 @@ class RankingTrainer:
     """
     
     def __init__(self, model, tokenizer, device='cuda', loss_type='combined'):
+        logger.info(f"初始化RankingTrainer: device={device}, loss_type={loss_type}")
         self.model = model.to(device)
         self.tokenizer = tokenizer
         self.device = device
         self.loss_type = loss_type
         
         if loss_type == 'combined':
+            logger.info("使用组合损失函数(CombinedLoss)")
             self.criterion = CombinedLoss()
         elif loss_type == 'pairwise':
+            logger.info("使用排序损失函数(PairwiseLoss)")
             self.criterion = PairwiseLoss()
         else:
+            logger.error(f"不支持的损失函数类型: {loss_type}")
             raise ValueError("损失函数类型必须是 'combined' 或 'pairwise'")
-    
-    def train_epoch(self, dataloader, optimizer, scheduler=None):
-        """训练一个epoch"""
-        self.model.train()
-        total_loss = 0
-        total_mse_loss = 0
-        total_pairwise_loss = 0
-        
-        for batch in tqdm(dataloader, desc="Training"):
-            # 移动数据到设备
-            # Pair编码输入
-            pos_pair_input_ids = batch['pos_pair_input_ids'].to(self.device)
-            pos_pair_attention_mask = batch['pos_pair_attention_mask'].to(self.device)
-            neg_pair_input_ids = batch['neg_pair_input_ids'].to(self.device)
-            neg_pair_attention_mask = batch['neg_pair_attention_mask'].to(self.device)
-            pos_pair_token_type_ids = batch['pos_pair_token_type_ids'].to(self.device)
-            neg_pair_token_type_ids = batch['neg_pair_token_type_ids'].to(self.device)
-            pos_rel = batch['pos_rel'].to(self.device)
-            neg_rel = batch['neg_rel'].to(self.device)
-            pos_weight = batch['pos_weight'].to(self.device)
-            neg_weight = batch['neg_weight'].to(self.device)
-            
-            # 前向传播(使用拼接后的pair输入计算分数)
-            pos_scores = self.model.compute_pair_score(
-                pos_pair_input_ids, pos_pair_attention_mask, pos_pair_token_type_ids
-            )
-            neg_scores = self.model.compute_pair_score(
-                neg_pair_input_ids, neg_pair_attention_mask, neg_pair_token_type_ids
-            )
-            
-            # 计算损失
-            if self.loss_type == 'combined':
-                loss, mse_loss, pairwise_loss = self.criterion(
-                    pos_scores, neg_scores, pos_rel, neg_rel, pos_weight, neg_weight
-                )
-                total_mse_loss += mse_loss.item()
-                total_pairwise_loss += pairwise_loss.item()
-            else:  # pairwise only
-                loss = self.criterion(pos_scores, neg_scores, pos_weight)
-            
-            # 反向传播
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            
-            if scheduler:
-                scheduler.step()
-            
-            total_loss += loss.item()
-        
-        avg_loss = total_loss / len(dataloader)
-        avg_mse_loss = total_mse_loss / len(dataloader) if self.loss_type == 'combined' else 0
-        avg_pairwise_loss = total_pairwise_loss / len(dataloader) if self.loss_type == 'combined' else 0
-        
-        return avg_loss, avg_mse_loss, avg_pairwise_loss
+        logger.info("RankingTrainer初始化完成")
     
     def evaluate(self, dataloader, k=10):
         """评估模型"""
+        logger.info(f"开始评估模型，NDCG@k={k}")
         self.model.eval()
         total_loss = 0
         all_ndcg_scores = []
@@ -605,6 +611,7 @@ class RankingTrainer:
         avg_loss = total_loss / len(dataloader)
         avg_ndcg = np.mean(all_ndcg_scores) if all_ndcg_scores else 0.0
         
+        logger.info(f"评估完成: loss={avg_loss:.4f}, NDCG@{k}={avg_ndcg:.4f}")
         return avg_loss, avg_ndcg
     
     def compute_ndcg_at_k(self, pos_scores, neg_scores, pos_targets, neg_targets, k=10):
@@ -627,61 +634,6 @@ class RankingTrainer:
             return ndcg
         except:
             return 0.0
-
-
-## 删除了示例数据创建逻辑，统一从本地JSON加载
-
-
-def split_by_key(all_data: List[Dict], train_ratio: float = 0.8, val_ratio: float = 0.1, key_field: str = 'key', seed: int = 42):
-    """按 key 字段分组再切分 train/val/test"""
-    rng = np.random.default_rng(seed)
-    groups = defaultdict(list)
-    for item in all_data:
-        groups[item.get(key_field, item.get('query'))].append(item)
-    keys = list(groups.keys())
-    rng.shuffle(keys)
-    n = len(keys)
-    n_train = int(n * train_ratio)
-    n_val = int(n * val_ratio)
-    train_keys = set(keys[:n_train])
-    val_keys = set(keys[n_train:n_train + n_val])
-    test_keys = set(keys[n_train + n_val:])
-    train, val, test = [], [], []
-    for k, items in groups.items():
-        if k in train_keys:
-            train.extend(items)
-        elif k in val_keys:
-            val.extend(items)
-        else:
-            test.extend(items)
-    return train, val, test
-
-
-def save_json(path: str, data: List[Dict]):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-
-def load_json(path: str) -> List[Dict]:
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-
-def ensure_splits(data_path: str, out_dir: str, train_ratio: float, val_ratio: float, key_field: str = 'key', seed: int = 42):
-    """从本地读取原始数据, 生成 train/val/test 三个切分文件。"""
-    os.makedirs(out_dir, exist_ok=True)
-    raw = load_json(data_path)
-    train, val, test = split_by_key(raw, train_ratio, val_ratio, key_field, seed)
-    train_path = os.path.join(out_dir, 'train.json')
-    val_path = os.path.join(out_dir, 'val.json')
-    test_path = os.path.join(out_dir, 'test.json')
-    save_json(train_path, train)
-    save_json(val_path, val)
-    save_json(test_path, test)
-    logger.info(f"已生成数据切分: train={len(train)}, val={len(val)}, test={len(test)}")
-    return train_path, val_path, test_path
-
 
 def save_checkpoint(output_dir: str, step: int, model: BertRankingModel, tokenizer, train_loss: float, val_loss: float):
     ckpt_dir = os.path.join(output_dir, f"checkpoint-step-{step}")
@@ -735,6 +687,10 @@ def select_best_checkpoint(output_dir: str):
 
 def train_fn(args):
     """训练函数: 周期性保存checkpoint, 记录train/val损失"""
+    logger.info("=" * 50)
+    logger.info("开始训练流程")
+    logger.info("=" * 50)
+    
     # 直接使用显式提供的训练/验证集路径，不再进行数据切分
     train_path = args.train_path
     val_path = args.val_path
@@ -748,6 +704,10 @@ def train_fn(args):
         logger.error(f"验证集不存在: {val_path}")
         return
 
+    logger.info(f"训练参数: epochs={args.num_epochs}, batch_size={args.batch_size}, lr={args.learning_rate}")
+    logger.info(f"模型: {args.model_name}, 设备: {args.device}, 损失类型: {args.loss_type}")
+    logger.info(f"保存路径: {args.save_path}")
+
     # 初始化tokenizer和模型
     logger.info("初始化tokenizer和模型...")
     tokenizer = BertTokenizer.from_pretrained(args.model_name)
@@ -759,12 +719,14 @@ def train_fn(args):
     val_ds = RankingDataset(val_path, tokenizer, args.max_length, True, args.max_pairs_per_query, args.group_field)
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False)
+    logger.info(f"数据加载器创建完成: train_batches={len(train_loader)}, val_batches={len(val_loader)}")
 
     # 训练器与优化器
     trainer = RankingTrainer(model, tokenizer, args.device, args.loss_type)
     optimizer = AdamW(model.parameters(), lr=args.learning_rate)
     total_steps = len(train_loader) * args.num_epochs
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=total_steps)
+    logger.info(f"优化器和调度器初始化完成: total_steps={total_steps}, warmup_steps={args.warmup_steps}")
 
     # 训练循环, 按步保存
     logger.info("开始训练...")
@@ -772,7 +734,7 @@ def train_fn(args):
     global_step = 0
     best_eval = float('inf')
     for epoch in range(args.num_epochs):
-        logger.info(f"Epoch {epoch + 1}/{args.num_epochs}")
+        logger.info(f"开始 Epoch {epoch + 1}/{args.num_epochs}")
         # 逐batch训练以便拿到步数
         trainer.model.train()
         epoch_loss = 0.0
@@ -825,22 +787,36 @@ def train_fn(args):
         # 保存一个epoch末尾的checkpoint
         ckpt_dir = save_checkpoint(args.save_path, global_step, trainer.model, trainer.tokenizer, epoch_loss/len(train_loader), val_loss)
         logger.info(f"保存epoch末尾checkpoint: {ckpt_dir}")
+    
+    logger.info("=" * 50)
+    logger.info("训练流程完成")
+    logger.info("=" * 50)
 
 
 def evaluate_fn(args):
     """评估函数: 遍历/选择checkpoint进行评估, 输出最佳。"""
+    logger.info("=" * 50)
+    logger.info("开始评估流程")
+    logger.info("=" * 50)
+    
     # 选择checkpoint
     ckpt = select_best_checkpoint(args.save_path) if args.select_best else None
     target_ckpts = []
     if args.checkpoint_dir:
+        logger.info(f"评估指定checkpoint: {args.checkpoint_dir}")
         target_ckpts = [(args.checkpoint_dir, {})]
     elif ckpt is not None:
+        logger.info(f"评估最佳checkpoint: {ckpt[0]}")
         target_ckpts = [ckpt]
     else:
+        logger.info("评估所有checkpoint")
         target_ckpts = list_checkpoints(args.save_path)
+    
     if not target_ckpts:
         logger.error("未找到可评估的checkpoint")
         return
+    
+    logger.info(f"找到{len(target_ckpts)}个checkpoint待评估")
 
     # 数据：直接使用显式提供的评估集路径
     if not args.eval_path:
@@ -865,25 +841,42 @@ def evaluate_fn(args):
 
     # 选择最佳
     best = sorted(results, key=lambda x: (x['loss'], -x['ndcg@10']))[0]
-    with open(os.path.join(args.save_path, 'evaluation_summary.json'), 'w', encoding='utf-8') as f:
+    logger.info(f"评估结果汇总: 共{len(results)}个模型")
+    for result in results:
+        logger.info(f"  {result['checkpoint']}: loss={result['loss']:.4f}, NDCG@10={result['ndcg@10']:.4f}")
+    
+    summary_path = os.path.join(args.save_path, 'evaluation_summary.json')
+    with open(summary_path, 'w', encoding='utf-8') as f:
         json.dump({"all": results, "best": best}, f, ensure_ascii=False, indent=2)
+    logger.info(f"评估摘要已保存到: {summary_path}")
     logger.info(f"最佳模型: {best['checkpoint']} (loss={best['loss']:.4f}, NDCG@10={best['ndcg@10']:.4f})")
+    
+    logger.info("=" * 50)
+    logger.info("评估流程完成")
+    logger.info("=" * 50)
 
 
 def deploy_fn(args):
     """部署为FastAPI服务。"""
+    logger.info("=" * 50)
+    logger.info("开始部署流程")
+    logger.info("=" * 50)
+    
     try:
         from fastapi import FastAPI
         from pydantic import BaseModel
         import uvicorn
+        logger.info("FastAPI依赖检查通过")
     except Exception as e:
         logger.error(f"FastAPI 依赖未安装: {e}")
         return
 
     device = args.device
+    logger.info(f"加载模型: {args.model_dir}")
     tokenizer = BertTokenizer.from_pretrained(args.model_dir)
     model = BertRankingModel.from_pretrained(args.model_dir).to(device)
     model.eval()
+    logger.info("模型加载完成，开始创建API服务")
 
     app = FastAPI(title="BERT Ranking Service", version="1.0.0")
 
@@ -917,6 +910,10 @@ def deploy_fn(args):
             s = model.compute_pair_score(pair['input_ids'].to(device), pair['attention_mask'].to(device), token_type_ids.to(device))
             return {"scores": s.cpu().tolist()}
 
+    logger.info(f"启动API服务: {args.host}:{args.port}")
+    logger.info("=" * 50)
+    logger.info("部署流程完成，服务已启动")
+    logger.info("=" * 50)
     uvicorn.run(app, host=args.host, port=args.port)
 
 
@@ -986,6 +983,8 @@ def main():
                        help='服务端口')
     
     args = parser.parse_args()
+    logger.info("BERT排序微调脚本启动")
+    logger.info(f"运行模式: {args.mode}")
     
     # 统一从本地JSON加载数据
 
@@ -997,11 +996,13 @@ def main():
     elif args.mode == 'deploy':
         # 若未指定model_dir则选最佳
         if not args.model_dir:
+            logger.info("未指定模型目录，自动选择最佳checkpoint")
             best = select_best_checkpoint(args.save_path)
             if best is None:
                 logger.error("未找到最佳checkpoint用于部署")
                 return
             args.model_dir = best[0]
+            logger.info(f"选择最佳checkpoint: {args.model_dir}")
         deploy_fn(args)
 
 
@@ -1014,4 +1015,7 @@ if __name__ == "__main__":
     部署（使用最佳 checkpoint）
     python ranking_finetune.py --mode deploy --save_path output/ranking --host 0.0.0.0 --port 8000
     '''
-    main()
+    try:
+        main()
+    except Exception as e:
+        logger.error(f"排序微调模型错误: {traceback.format_exc()}")
