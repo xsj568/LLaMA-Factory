@@ -45,8 +45,8 @@ pip install torch transformers scikit-learn tqdm
 ```bash
 python vector_finetune.py \
     --mode train \
-    --train_path local_run/finetune/data/vec_train.json \
-    --val_path local_run/finetune/data/vec_valid.json \
+    --train_path local_run/finetune_cursor/data/vec_train.json \
+    --val_path local_run/finetune_cursor/data/vec_valid.json \
     --model_name bert-base-uncased \
     --max_length 512 \
     --batch_size 16 \
@@ -63,7 +63,7 @@ python vector_finetune.py \
 ```bash
 python vector_finetune.py \
   --mode evaluate \
-  --test_path local_run/finetune/data/vec_test.json \
+  --test_path local_run/finetune_cursor/data/vec_test.json \
   --save_path ./output/vector_model \
   --select_best
 ```
@@ -71,7 +71,7 @@ python vector_finetune.py \
 也可指定单个 checkpoint 目录：
 
 ```bash
-python vector_finetune.py --mode evaluate --test_path local_run/finetune/data/vec_test.json --checkpoint_dir ./output/vector_model/checkpoint-step-2000
+python vector_finetune.py --mode evaluate --test_path local_run/finetune_cursor/data/vec_test.json --checkpoint_dir ./output/vector_model/checkpoint-step-2000
 ```
 
 ### 3. 部署

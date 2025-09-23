@@ -85,8 +85,8 @@ pip install torch transformers scikit-learn tqdm
 ```bash
 python ranking_finetune.py \
     --mode train \
-    --train_path local_run/finetune/data/rank_train.json \
-    --val_path local_run/finetune/data/rank_test.json \
+    --train_path local_run/finetune_cursor/data/rank_train.json \
+    --val_path local_run/finetune_cursor/data/rank_test.json \
     --loss_type combined \
     --mse_weight 0.3 \
     --pairwise_weight 0.7 \
@@ -101,8 +101,8 @@ python ranking_finetune.py \
 ```bash
 python ranking_finetune.py \
     --mode train \
-    --train_path local_run/finetune/data/rank_train.json \
-    --val_path local_run/finetune/data/rank_test.json \
+    --train_path local_run/finetune_cursor/data/rank_train.json \
+    --val_path local_run/finetune_cursor/data/rank_test.json \
     --loss_type pairwise \
     --margin 1.0 \
     --group_field key \
@@ -118,7 +118,7 @@ python ranking_finetune.py \
 ```bash
 python ranking_finetune.py \
   --mode evaluate \
-  --eval_path local_run/finetune/data/rank_valid.json \
+  --eval_path local_run/finetune_cursor/data/rank_valid.json \
   --save_path ./output/ranking_model \
   --select_best
 ```
@@ -126,7 +126,7 @@ python ranking_finetune.py \
 也可指定单个 checkpoint 目录：
 
 ```bash
-python ranking_finetune.py --mode evaluate --eval_path local_run/finetune/data/rank_valid.json --checkpoint_dir ./output/ranking_model/checkpoint-step-2000
+python ranking_finetune.py --mode evaluate --eval_path local_run/finetune_cursor/data/rank_valid.json --checkpoint_dir ./output/ranking_model/checkpoint-step-2000
 ```
 
 ### 4. 部署
