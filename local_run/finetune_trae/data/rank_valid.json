@@ -1,0 +1,31 @@
+[
+  { "key": "topic_016", "query": "GPU training tips", "document": "Gradient accumulation simulates larger batches under memory limits.", "rel": 0.88, "weight": 1.0 },
+  { "key": "topic_016", "query": "GPU training tips", "document": "Checkpointing saves intermediate states for recovery.", "rel": 0.83, "weight": 1.0 },
+  { "key": "topic_016", "query": "GPU training tips", "document": "Deterministic flags improve reproducibility at some speed cost.", "rel": 0.78, "weight": 1.0 },
+  { "key": "topic_016", "query": "GPU training tips", "document": "Pinning memory can speed up host-to-device copies.", "rel": 0.75, "weight": 1.0 },
+  { "key": "topic_016", "query": "GPU training tips", "document": "Home baking is unrelated to GPU training.", "rel": 0.02, "weight": 1.0 },
+
+  { "key": "topic_017", "query": "Evaluation practice", "document": "Use held-out validation and test sets with no leakage.", "rel": 0.9, "weight": 1.0 },
+  { "key": "topic_017", "query": "Evaluation practice", "document": "Report mean and variance across random seeds when feasible.", "rel": 0.84, "weight": 1.0 },
+  { "key": "topic_017", "query": "Evaluation practice", "document": "Stratify splits by group/key to avoid cross-contamination.", "rel": 0.82, "weight": 1.0 },
+  { "key": "topic_017", "query": "Evaluation practice", "document": "Track per-query metrics like NDCG@k for IR tasks.", "rel": 0.8, "weight": 1.0 },
+  { "key": "topic_017", "query": "Evaluation practice", "document": "Car models are irrelevant to ML evaluation.", "rel": 0.01, "weight": 1.0 },
+
+  { "key": "topic_018", "query": "Loss weighting", "document": "Sample weights can reflect importance or confidence of labels.", "rel": 0.88, "weight": 1.0 },
+  { "key": "topic_018", "query": "Loss weighting", "document": "Imbalanced data can benefit from class or sample reweighting.", "rel": 0.84, "weight": 1.0 },
+  { "key": "topic_018", "query": "Loss weighting", "document": "Curriculum learning adjusts difficulty over time.", "rel": 0.79, "weight": 1.0 },
+  { "key": "topic_018", "query": "Loss weighting", "document": "Focal loss down-weights easy examples to focus on hard ones.", "rel": 0.76, "weight": 1.0 },
+  { "key": "topic_018", "query": "Loss weighting", "document": "Aquarium care is not related to loss weighting.", "rel": 0.02, "weight": 1.0 },
+
+  { "key": "topic_019", "query": "Text normalization", "document": "Lowercasing and unicode NFKC normalizes consistent forms.", "rel": 0.86, "weight": 1.0 },
+  { "key": "topic_019", "query": "Text normalization", "document": "Stopword removal may hurt for transformer-based rerankers.", "rel": 0.78, "weight": 1.0 },
+  { "key": "topic_019", "query": "Text normalization", "document": "Stemming/lemmatization are often unnecessary with subword models.", "rel": 0.77, "weight": 1.0 },
+  { "key": "topic_019", "query": "Text normalization", "document": "Punctuation handling can affect token boundaries.", "rel": 0.75, "weight": 1.0 },
+  { "key": "topic_019", "query": "Text normalization", "document": "Fishing lures are unrelated to text normalization.", "rel": 0.01, "weight": 1.0 },
+
+  { "key": "topic_020", "query": "Ranking heads", "document": "Concatenation of query/doc vectors followed by MLP predicts a score.", "rel": 0.9, "weight": 1.0 },
+  { "key": "topic_020", "query": "Ranking heads", "document": "Pair-encoded single sequence with [CLS] feeding a linear head.", "rel": 0.86, "weight": 1.0 },
+  { "key": "topic_020", "query": "Ranking heads", "document": "Feature normalization often stabilizes training for cosine-based heads.", "rel": 0.81, "weight": 1.0 },
+  { "key": "topic_020", "query": "Ranking heads", "document": "Margin tuning in pairwise losses affects separation strength.", "rel": 0.79, "weight": 1.0 },
+  { "key": "topic_020", "query": "Ranking heads", "document": "Pet care is unrelated to ranking heads.", "rel": 0.01, "weight": 1.0 }
+]

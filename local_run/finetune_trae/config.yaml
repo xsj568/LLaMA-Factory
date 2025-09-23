@@ -1,0 +1,43 @@
+# BERT向量和排序模型微调配置文件
+
+# 通用配置
+general:
+  model_name: "bert-base-uncased"  # 使用的BERT模型名称
+  max_length: 512  # 最大序列长度
+  device: "cuda"  # 训练设备，如果没有GPU可以设置为"cpu"
+  save_base_path: "./output"  # 模型保存的基础路径
+  data_dir: "./data"  # 数据目录
+
+# 向量化模型配置
+vector_model:
+  learning_rate: 2e-5  # 学习率
+  batch_size: 16  # 批次大小
+  num_epochs: 3  # 训练轮数
+  warmup_steps: 100  # 预热步数
+  save_steps: 100  # 每多少步保存一次checkpoint
+  output_dir: "${general.save_base_path}/vector_model"  # 模型保存路径
+  train_path: "${general.data_dir}/vec_train.json"  # 训练数据路径
+  val_path: "${general.data_dir}/vec_valid.json"  # 验证数据路径
+  eval_path: "${general.data_dir}/vec_test.json"  # 评估数据路径
+
+# 排序模型配置
+ranking_model:
+  learning_rate: 2e-5  # 学习率
+  batch_size: 16  # 批次大小
+  num_epochs: 3  # 训练轮数
+  warmup_steps: 100  # 预热步数
+  save_steps: 100  # 每多少步保存一次checkpoint
+  loss_type: "pairwise"  # 损失函数类型: pairwise
+  margin: 1.0  # Pairwise损失边界值
+  group_field: "key"  # 分组字段
+  max_pairs_per_query: 100  # 每个query的最大pair数量
+  output_dir: "${general.save_base_path}/ranking_model"  # 模型保存路径
+  train_path: "${general.data_dir}/rank_train.json"  # 训练数据路径
+  val_path: "${general.data_dir}/rank_valid.json"  # 验证数据路径
+  eval_path: "${general.data_dir}/rank_test.json"  # 评估数据路径
+
+# 部署配置
+deploy:
+  vector_port: 8001  # 向量模型服务端口
+  ranking_port: 8002  # 排序模型服务端口
+  host: "0.0.0.0"  # 服务主机

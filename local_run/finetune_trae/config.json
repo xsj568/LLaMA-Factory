@@ -1,0 +1,39 @@
+{
+  "output_dir": "./output",
+  "data_dir": "./data",
+  "num_samples": 100,
+  "vector_model": {
+    "model_name": "bert-base-uncased",
+    "max_length": 512,
+    "batch_size": 16,
+    "learning_rate": 0.00002,
+    "num_epochs": 3,
+    "warmup_steps": 100,
+    "device": "cpu",
+    "train_path": "./data/vec_train.json",
+    "val_path": "./data/vec_valid.json",
+    "eval_path": "./data/vec_test.json"
+  },
+  "ranking_model": {
+    "model_name": "bert-base-uncased",
+    "max_length": 512,
+    "max_pairs_per_query": 100,
+    "batch_size": 16,
+    "learning_rate": 0.00002,
+    "num_epochs": 3,
+    "warmup_steps": 100,
+    "device": "cpu",
+    "loss_type": "pairwise",
+    "margin": 1.0,
+    "mse_weight": 0.5,
+    "pairwise_weight": 0.5,
+    "train_path": "./data/rank_train.json",
+    "val_path": "./data/rank_valid.json",
+    "eval_path": "./data/rank_test.json"
+  },
+  "deployment": {
+    "vector_model_port": 8001,
+    "ranking_model_port": 8002,
+    "host": "0.0.0.0"
+  }
+}
