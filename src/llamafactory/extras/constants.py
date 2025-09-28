@@ -603,12 +603,43 @@ register_model_group(
 
 register_model_group(
     models={
+        "dots.ocr": {
+            DownloadSource.DEFAULT: "rednote-hilab/dots.ocr",
+            DownloadSource.MODELSCOPE: "rednote-hilab/dots.ocr",
+        },
+    },
+    template="dots_ocr",
+    multimodal=True,
+)
+
+
+register_model_group(
+    models={
         "ERNIE-4.5-21B-A3B-Thinking": {
             DownloadSource.DEFAULT: "baidu/ERNIE-4.5-21B-A3B-Thinking",
             DownloadSource.MODELSCOPE: "PaddlePaddle/ERNIE-4.5-21B-A3B-Thinking",
         },
     },
     template="ernie",
+)
+
+
+register_model_group(
+    models={
+        "ERNIE-4.5-0.3B-PT": {
+            DownloadSource.DEFAULT: "baidu/ERNIE-4.5-0.3B-PT",
+            DownloadSource.MODELSCOPE: "PaddlePaddle/ERNIE-4.5-0.3B-PT",
+        },
+        "ERNIE-4.5-21B-A3B-PT": {
+            DownloadSource.DEFAULT: "baidu/ERNIE-4.5-21B-A3B-PT",
+            DownloadSource.MODELSCOPE: "PaddlePaddle/ERNIE-4.5-21B-A3B-PT",
+        },
+        "ERNIE-4.5-300B-A47B-PT": {
+            DownloadSource.DEFAULT: "baidu/ERNIE-4.5-300B-A47B-PT",
+            DownloadSource.MODELSCOPE: "PaddlePaddle/ERNIE-4.5-300B-A47B-PT",
+        },
+    },
+    template="ernie_nothink",
 )
 
 
@@ -3032,6 +3063,34 @@ register_model_group(
 
 register_model_group(
     models={
+        "Qwen3-Omni-30B-A3B-Captioner": {
+            DownloadSource.DEFAULT: "Qwen/Qwen3-Omni-30B-A3B-Captioner",
+            DownloadSource.MODELSCOPE: "Qwen/Qwen3-Omni-30B-A3B-Captioner",
+        },
+        "Qwen3-Omni-30B-A3B-Instruct": {
+            DownloadSource.DEFAULT: "Qwen/Qwen3-Omni-30B-A3B-Instruct",
+            DownloadSource.MODELSCOPE: "Qwen/Qwen3-Omni-30B-A3B-Instruct",
+        },
+    },
+    template="qwen3_omni_nothink",
+    multimodal=True,
+)
+
+
+register_model_group(
+    models={
+        "Qwen3-Omni-30B-A3B-Thinking": {
+            DownloadSource.DEFAULT: "Qwen/Qwen3-Omni-30B-A3B-Thinking",
+            DownloadSource.MODELSCOPE: "Qwen/Qwen3-Omni-30B-A3B-Thinking",
+        },
+    },
+    template="qwen3_omni",
+    multimodal=True,
+)
+
+
+register_model_group(
+    models={
         "Qwen2-VL-2B": {
             DownloadSource.DEFAULT: "Qwen/Qwen2-VL-2B",
             DownloadSource.MODELSCOPE: "Qwen/Qwen2-VL-2B",
@@ -3128,6 +3187,30 @@ register_model_group(
         },
     },
     template="qwen2_vl",
+    multimodal=True,
+)
+
+
+register_model_group(
+    models={
+        "Qwen3-VL-235B-A22B-Instruct": {
+            DownloadSource.DEFAULT: "Qwen/Qwen3-VL-235B-A22B-Instruct",
+            DownloadSource.MODELSCOPE: "Qwen/Qwen3-VL-235B-A22B-Instruct",
+        },
+    },
+    template="qwen3_vl_nothink",
+    multimodal=True,
+)
+
+
+register_model_group(
+    models={
+        "Qwen3-VL-235B-A22B-Thinking": {
+            DownloadSource.DEFAULT: "Qwen/Qwen3-VL-235B-A22B-Thinking",
+            DownloadSource.MODELSCOPE: "Qwen/Qwen3-VL-235B-A22B-Thinking",
+        },
+    },
+    template="qwen3_vl",
     multimodal=True,
 )
 
