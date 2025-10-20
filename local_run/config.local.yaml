@@ -1,0 +1,45 @@
+profile: "local"
+
+environment:
+  model_name: "../../models/gemma-3-4b-it"
+  description: "Gemma 3 1B Instruct (本地部署)"
+  template: "gemma3"
+  inference_engine: "huggingface"
+
+  hf_config:
+    max_new_tokens: 512
+    temperature: 0.7
+    top_p: 0.9
+
+  vllm_config:
+    tensor_parallel_size: 1
+    gpu_memory_utilization: 0.8
+    max_model_len: 8192
+    dtype: "auto"
+
+  service_config:
+    host: "0.0.0.0"
+    port: 8000
+    log_level: "info"
+
+  generation_defaults:
+    temperature: 0.7
+    max_tokens: 512
+    top_p: 0.9
+    stream: false
+
+common:
+  model_args:
+    trust_remote_code: true
+    use_fast_tokenizer: false
+    low_cpu_mem_usage: true
+    flash_attn: "auto"
+    cache_dir: null
+
+  required_packages:
+    - "fastapi"
+    - "uvicorn"
+    - "pydantic"
+    - "transformers"
+    - "torch"
+
