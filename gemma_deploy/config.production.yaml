@@ -1,0 +1,143 @@
+profile: "production"
+
+environment:
+  model_name: "/root/autodl-tmp/data/models/LLM-Research/gemma-3-27b-it/"    # /root/autodl-tmp/data/models/LLM-Research/gemma-3-27b-it/
+  description: "Gemma 3 27B Instruct (生产环境部署)"
+  template: "gemma3"
+  inference_engine: "vllm"
+
+  hf_config:
+    max_new_tokens: 1024
+    temperature: 0.7
+    top_p: 0.9
+
+  vllm_config:
+    # GPU并行配置 - 针对27B模型优化
+    tensor_parallel_size: 1  # 27B模型建议单GPU或2GPU并行
+    pipeline_parallel_size: 1
+    
+    # 内存优化 - 针对27B模型的内存需求
+    gpu_memory_utilization: 0.90  # 27B模型需要更多内存，降低到90%
+    max_model_len: 120000  # 120K tokens
+    dtype: "bfloat16"  # 27B模型推荐使用bfloat16
+    
+    # 批处理优化 - 针对27B模型的性能特点
+    max_num_batched_tokens: 32768  # 增加批处理token数以充分利用128K上下文
+    max_num_seqs: 128  # 27B模型并发数适当降低以保持性能
+    max_paddings: 512  # 增加padding以支持长序列
+    
+    # 性能优化
+    enforce_eager: false  # 使用CUDA Graph优化
+    disable_log_stats: true  # 减少日志开销
+    trust_remote_code: true
+    
+    # 模型加载优化
+    load_format: "auto"
+    download_dir: null
+    revision: null
+    code_revision: null
+    tokenizer_revision: null
+    
+    # 量化配置 - 27B模型可考虑量化以节省内存
+    quantization: null  # 可选: "awq", "gptq", "squeezellm"
+    
+    # 序列长度优化 - 针对120K上下文
+    max_seq_len_to_capture: 120000  # 120K tokens
+    
+    # KV Cache优化 - 针对长序列
+    kv_cache_dtype: "auto"  # 自动选择KV Cache数据类型
+    block_size: 16  # 标准block size
+    
+    # 注意力机制优化
+    attention_backend: "FLASH_ATTN"  # 使用 Flash Attention 后端
+    
+    # 27B模型特有优化
+    swap_space: 8  # GB，增加swap空间以支持128K上下文
+    cpu_offload_gb: 0  # 不启用CPU offload以保持性能
+    
+    # 多模态支持（如果使用图像）
+    image_input_type: "pixel_values"  # 支持图像输入
+    image_token_id: 262144  # Gemma 3图像token ID
+    image_input_shape: "1,3,896,896"  # 图像输入形状
+    
+    # 27B模型高级优化
+    enable_chunked_prefill: false  # 简化配置，禁用分块预填充
+    prefill_chunk_size: 4096  # 标准预填充块大小
+
+  service_config:
+    host: "0.0.0.0"
+    port: 6006
+    log_level: "warning"  # 减少日志输出，提高性能
+    workers: 1  # vLLM不支持多worker，保持为1
+    loop: "uvloop"  # 高性能事件循环
+    http: "httptools"  # 高性能HTTP解析器
+    # 连接优化 - 针对27B模型调整
+    limit_concurrency: 32  # 进一步降低并发数以优化27B模型性能
+    limit_max_requests: 500  # 降低最大请求数
+    timeout_keep_alive: 120  # 增加保持连接时间以支持长序列处理
+    # 27B模型特有配置
+    max_request_size: 268435456  # 256MB，支持更长的文本请求
+    timeout_graceful_shutdown: 60  # 增加优雅关闭超时
+    # 长序列处理优化
+    request_timeout: 300  # 5分钟请求超时，支持长序列处理
+    max_request_length: 120000  # 120K tokens
+
+  generation_defaults:
+    temperature: 0.7
+    max_tokens: 8192  # 27B模型支持8192输出tokens
+    top_p: 0.9
+    stream: false
+    # 高级生成参数 - 针对27B模型优化
+    top_k: 50
+    repetition_penalty: 1.1
+    length_penalty: 1.0
+    early_stopping: true
+    # 输入长度优化 - 支持120K上下文
+    max_input_length: 120000  # 120K tokens
+    # 27B模型特有参数
+    min_new_tokens: 1
+    max_new_tokens: 8192
+    stop_token_ids: [1, 106]  # Gemma 3的EOS tokens
+    # 多模态参数
+    image_input_type: "pixel_values"
+    image_token_id: 262144
+    # 27B模型高级生成参数
+    do_sample: true
+    num_beams: 1  # 单beam以保持速度
+    early_stopping: true
+    # 长序列生成优化
+    max_prompt_length: 120000  # 120K tokens
+    max_completion_length: 8192  # 支持8K输出
+    # 性能优化参数
+    use_cache: true  # 启用KV cache
+    output_attentions: false  # 不输出注意力权重以节省内存
+    output_hidden_states: false  # 不输出隐藏状态
+
+common:
+  model_args:
+    trust_remote_code: true
+    use_fast_tokenizer: false
+    low_cpu_mem_usage: true
+    flash_attn: "auto"
+    cache_dir: null
+    # 27B模型专用参数
+    torch_dtype: "bfloat16"  # 使用bfloat16以节省内存
+    device_map: "auto"  # 自动设备映射
+    max_memory: null  # 不限制最大内存
+    # 注意：RoPE相关参数在vLLM中不支持，已移除
+    # sliding_window: 1024  # 滑动窗口大小 - vLLM不支持
+    # rope_scaling: "linear"  # RoPE缩放 - vLLM不支持
+    # rope_theta: 1000000.0  # RoPE theta参数 - vLLM不支持
+
+  required_packages:
+    - "fastapi"
+    - "uvicorn"
+    - "pydantic"
+    - "transformers"
+    - "torch"
+    #- "vllm"
+    #- "pyyaml"  # 配置文件解析
+    #- "requests"  # HTTP请求
+    #- "numpy"  # 数值计算
+    #- "accelerate"  # 模型加速
+

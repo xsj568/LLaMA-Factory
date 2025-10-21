@@ -24,7 +24,8 @@ from typing import List, Dict, Any, Optional
 
 # 添加项目路径
 THIS_FILE = Path(__file__).resolve()
-PROJECT_ROOT = THIS_FILE.parent
+LOCAL_RUN_DIR = THIS_FILE.parent  # 当前目录就是 local_run
+PROJECT_ROOT = LOCAL_RUN_DIR.parent  # 上级目录是 LLaMA-Factory
 SRC_DIR = PROJECT_ROOT / "src"
 
 if str(SRC_DIR) not in sys.path:
@@ -40,12 +41,16 @@ import uvicorn
 from llamafactory.chat.chat_model import ChatModel
 from llamafactory.extras.constants import EngineName
 
-# 设置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# 导入统一日志配置
+from log_config import setup_logging, get_logger, get_request_logger, log_startup_info, log_shutdown_info
+
+# 设置统一日志配置
+log_config_path = Path(__file__).parent / 'logging_config.yaml'
+setup_logging(log_config_path)
+
+# 获取日志记录器
+logger = get_logger(__name__)
+request_logger = get_request_logger()
 
 # 全局变量
 chat_model = None
@@ -140,9 +145,43 @@ def get_model_args() -> Dict[str, Any]:
         logger.info(f"使用 HuggingFace 推理引擎")
     
     # 添加通用模型参数
+    if config is None:
+        load_config()
     model_args.update(config["common"]["model_args"])
     
+    # 过滤掉vLLM特有的参数，避免传递给ChatModel
+    vllm_only_params = [
+        "tensor_parallel_size", "gpu_memory_utilization", "max_model_len", "dtype",
+        "attention_backend", "block_size", "code_revision", "cpu_offload_gb", 
+        "device_map", "disable_log_stats", "download_dir", "enable_chunked_prefill", 
+        "enforce_eager", "image_input_shape", "image_input_type", "image_token_id", 
+        "kv_cache_dtype", "load_format", "max_memory", "max_num_batched_tokens", 
+        "max_num_seqs", "max_paddings", "max_seq_len_to_capture", "pipeline_parallel_size", 
+        "prefill_chunk_size", "quantization", "revision", "rope_theta", "sliding_window", 
+        "swap_space", "tokenizer_revision", "torch_dtype", "rope_scaling"
+    ]
+    
+    # 移除vLLM特有参数
+    removed_params = []
+    for param in vllm_only_params:
+        if param in model_args:
+            del model_args[param]
+            removed_params.append(param)
+            logger.debug(f"移除vLLM特有参数: {param}")
+    
+    if removed_params:
+        logger.info(f"已移除vLLM特有参数: {removed_params}")
+    
     logger.info(f"模型参数配置完成: {env_config['model_name']}")
+    logger.info(f"推理引擎: {model_args.get('infer_backend', 'unknown')}")
+    logger.info(f"最终参数数量: {len(model_args)}")
+    
+    # 记录最终的关键参数
+    logger.info("最终模型参数:")
+    for key in ["model_name_or_path", "template", "infer_backend", "trust_remote_code", "use_fast_tokenizer", "low_cpu_mem_usage", "torch_dtype"]:
+        if key in model_args:
+            logger.info(f"  {key}: {model_args[key]}")
+    
     return model_args
 
 def load_model() -> bool:
@@ -160,15 +199,23 @@ def load_model() -> bool:
         logger.info(f"推理引擎: {model_args['infer_backend']}")
         logger.info(f"模板: {model_args['template']}")
         
+        # 记录关键参数
+        logger.info(f"关键参数: trust_remote_code={model_args.get('trust_remote_code', 'N/A')}")
+        logger.info(f"关键参数: use_fast_tokenizer={model_args.get('use_fast_tokenizer', 'N/A')}")
+        logger.info(f"关键参数: low_cpu_mem_usage={model_args.get('low_cpu_mem_usage', 'N/A')}")
+        
         # 创建聊天模型
+        logger.info("正在创建ChatModel实例...")
         chat_model = ChatModel(args=model_args)
         model_loaded = True
         
-        logger.info("模型加载成功！")
+        logger.info("✅ 模型加载成功！")
         return True
         
     except Exception as e:
-        logger.error(f"模型加载失败: {e}")
+        logger.error(f"❌ 模型加载失败: {e}")
+        logger.error(f"错误类型: {type(e).__name__}")
+        logger.error(f"错误详情: {str(e)}")
         model_loaded = False
         return False
 
@@ -188,21 +235,36 @@ def get_model_info() -> Dict[str, Any]:
 @app.on_event("startup")
 async def startup_event():
     """应用启动事件"""
-    logger.info("正在启动 Gemma 模型部署服务...")
+    # 记录启动信息
+    config_info = {
+        "配置文件": current_config_path,
+        "模型信息": get_model_info() if config else "配置未加载"
+    }
+    log_startup_info("Gemma 模型部署服务", config_info)
     
     try:
         # 加载模型
+        logger.info("开始加载模型...")
         success = load_model()
         
         if success:
-            logger.info("服务启动成功！")
+            logger.info("✅ 服务启动成功！")
+            logger.info(f"模型信息: {get_model_info()}")
+            request_logger.info("=== SERVICE STARTED ===")
         else:
-            logger.error("模型加载失败，服务启动失败")
+            logger.error("❌ 模型加载失败，服务启动失败")
             raise RuntimeError("模型加载失败")
             
     except Exception as e:
-        logger.error(f"服务启动失败: {e}")
+        logger.error(f"❌ 服务启动失败: {e}")
+        request_logger.error(f"SERVICE STARTUP FAILED: {e}")
         raise e
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """应用关闭事件"""
+    log_shutdown_info("Gemma 模型部署服务")
+    request_logger.info("=== SERVICE SHUTDOWN ===")
 
 @app.get("/", response_model=Dict[str, str])
 async def root():
@@ -218,10 +280,14 @@ async def root():
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """健康检查"""
+    logger.info("Health check requested")
     model_info = get_model_info()
     
+    health_status = "healthy" if model_loaded else "unhealthy"
+    logger.info(f"Health status: {health_status}, Model loaded: {model_loaded}")
+    
     return HealthResponse(
-        status="healthy" if model_loaded else "unhealthy",
+        status=health_status,
         model_loaded=model_loaded,
         deployment_type="config",
         model_info=model_info
@@ -230,7 +296,31 @@ async def health_check():
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """聊天接口"""
+    import time
+    import json
+    from datetime import datetime
+    
+    # 记录请求开始时间
+    start_time = time.time()
+    request_id = f"req_{int(start_time * 1000)}"
+    
+    # 记录请求详情
+    request_logger.info(f"[{request_id}] REQUEST START")
+    request_logger.info(f"[{request_id}] Messages: {len(request.messages)}")
+    request_logger.info(f"[{request_id}] Temperature: {request.temperature}")
+    request_logger.info(f"[{request_id}] Max Tokens: {request.max_tokens}")
+    request_logger.info(f"[{request_id}] Top P: {request.top_p}")
+    request_logger.info(f"[{request_id}] Stream: {request.stream}")
+    
+    # 记录消息内容（截断长消息）
+    for i, msg in enumerate(request.messages):
+        content = msg["content"]
+        if len(content) > 500:
+            content = content[:500] + "...[truncated]"
+        request_logger.info(f"[{request_id}] Message {i+1} ({msg['role']}): {content}")
+    
     if not model_loaded:
+        request_logger.error(f"[{request_id}] Model not loaded")
         raise HTTPException(status_code=503, detail="模型未加载")
     
     try:
@@ -271,6 +361,22 @@ async def chat(request: ChatRequest):
             input_tokens = response_obj.prompt_length
             output_tokens = response_obj.response_length
         
+        # 计算处理时间
+        end_time = time.time()
+        processing_time = end_time - start_time
+        
+        # 记录响应详情
+        response_preview = response_text[:200] + "..." if len(response_text) > 200 else response_text
+        request_logger.info(f"[{request_id}] RESPONSE GENERATED")
+        request_logger.info(f"[{request_id}] Response Length: {len(response_text)} chars")
+        request_logger.info(f"[{request_id}] Response Preview: {response_preview}")
+        request_logger.info(f"[{request_id}] Input Tokens: {input_tokens}")
+        request_logger.info(f"[{request_id}] Output Tokens: {output_tokens}")
+        request_logger.info(f"[{request_id}] Total Tokens: {input_tokens + output_tokens}")
+        request_logger.info(f"[{request_id}] Processing Time: {processing_time:.2f}s")
+        request_logger.info(f"[{request_id}] Tokens/Second: {(input_tokens + output_tokens) / processing_time:.2f}")
+        request_logger.info(f"[{request_id}] REQUEST END")
+        
         return ChatResponse(
             response=response_text,
             usage={
@@ -282,13 +388,21 @@ async def chat(request: ChatRequest):
         )
         
     except Exception as e:
+        end_time = time.time()
+        processing_time = end_time - start_time
+        request_logger.error(f"[{request_id}] ERROR: {str(e)}")
+        request_logger.error(f"[{request_id}] Processing Time: {processing_time:.2f}s")
+        request_logger.error(f"[{request_id}] REQUEST FAILED")
         logger.error(f"聊天生成失败: {e}")
         raise HTTPException(status_code=500, detail=f"生成失败: {str(e)}")
 
 @app.get("/model/info")
 async def model_info():
     """获取模型信息"""
-    return get_model_info()
+    logger.info("Model info requested")
+    info = get_model_info()
+    logger.info(f"Model info: {info}")
+    return info
 
 def show_startup_info():
     """显示启动信息"""
@@ -320,12 +434,13 @@ def main():
     """主函数"""
     logger.info("正在检查环境...")
     
-    # 加载配置
-    try:
-        load_config()
-    except Exception as e:
-        logger.error(f"配置文件加载失败: {e}")
-        sys.exit(1)
+    # 加载配置（如果尚未加载）
+    if config is None:
+        try:
+            load_config()
+        except Exception as e:
+            logger.error(f"配置文件加载失败: {e}")
+            sys.exit(1)
     
     # 检查依赖
     required_packages = config["common"]["required_packages"]
@@ -360,13 +475,27 @@ def main():
         # 启动服务
         logger.info("正在启动服务...")
         service_config = env_config["service_config"]
-        uvicorn.run(
-            "gemma_service:app",
-            host=service_config["host"],
-            port=service_config["port"],
-            reload=False,
-            log_level=service_config["log_level"]
-        )
+        # 构建uvicorn启动参数
+        uvicorn_kwargs = {
+            "app": "gemma_service:app",
+            "host": service_config["host"],
+            "port": service_config["port"],
+            "reload": False,
+            "log_level": service_config["log_level"],
+            "loop": service_config.get("loop", "auto"),
+            "http": service_config.get("http", "auto"),
+        }
+        
+        # 添加性能优化参数
+        if "limit_concurrency" in service_config:
+            uvicorn_kwargs["limit_concurrency"] = service_config["limit_concurrency"]
+        if "limit_max_requests" in service_config:
+            uvicorn_kwargs["limit_max_requests"] = service_config["limit_max_requests"]
+        if "timeout_keep_alive" in service_config:
+            uvicorn_kwargs["timeout_keep_alive"] = service_config["timeout_keep_alive"]
+            
+        logger.info(f"启动参数: {uvicorn_kwargs}")
+        uvicorn.run(**uvicorn_kwargs)
     except KeyboardInterrupt:
         logger.info("\n\n服务已停止")
     except Exception as e:

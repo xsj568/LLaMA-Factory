@@ -42,4 +42,7 @@ common:
     - "pydantic"
     - "transformers"
     - "torch"
+    - "requests"  # HTTP请求
+    - "numpy"  # 数值计算
+    - "accelerate"  # 模型加速
 

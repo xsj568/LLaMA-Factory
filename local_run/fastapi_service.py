@@ -47,16 +47,13 @@ from llamafactory.extras.constants import EngineName
 # 配置管理器导入
 from config_manager import config_manager
 
-# 设置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(str(LOCAL_RUN_DIR / 'fastapi_service.log'), encoding='utf-8')
-    ]
-)
-logger = logging.getLogger(__name__)
+# 导入统一日志配置
+from log_config import setup_logging, get_logger, log_startup_info, log_shutdown_info
+
+# 设置统一日志配置
+log_config_path = LOCAL_RUN_DIR / 'logging_config.yaml'
+setup_logging(log_config_path)
+logger = get_logger(__name__)
 
 # 全局变量
 chat_model = None
@@ -240,7 +237,14 @@ def load_model(use_merged_model: bool = True, use_vllm: bool = True):
 @app.on_event("startup")
 async def startup_event():
     """应用启动事件"""
-    logger.info("正在启动 FastAPI 服务...")
+    # 记录启动信息
+    config_info = {
+        "工作目录": str(LOCAL_RUN_DIR),
+        "使用合并模型": os.getenv("USE_MERGED_MODEL", "true").lower() == "true",
+        "使用vLLM": os.getenv("USE_VLLM", "true").lower() == "true"
+    }
+    log_startup_info("FastAPI 服务", config_info)
+    
     try:
         # 从环境变量获取模型选择参数
         use_merged = os.getenv("USE_MERGED_MODEL", "true").lower() == "true"
@@ -250,6 +254,11 @@ async def startup_event():
     except Exception as e:
         logger.error(f"服务启动失败: {e}")
         raise e
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """应用关闭事件"""
+    log_shutdown_info("FastAPI 服务")
 
 @app.get("/", response_model=Dict[str, str])
 async def root():

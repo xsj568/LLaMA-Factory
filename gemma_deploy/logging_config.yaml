@@ -1,0 +1,55 @@
+# 统一日志配置文件
+# ===================
+
+logging:
+  # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_level: INFO
+  
+  # 日志文件最大大小 (字节)
+  # 50MB = 50 * 1024 * 1024
+  max_file_size: 52428800
+  
+  # 备份文件数量
+  backup_count: 10
+  
+  # 日志格式 - 包含函数名和行号
+  log_format: '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d:%(funcName)s] - %(message)s'
+  
+  # 日期格式
+  date_format: '%Y-%m-%d %H:%M:%S'
+  
+  # 是否输出到控制台
+  console_output: true
+  
+  # 是否输出到文件
+  file_output: true
+  
+  # 统一日志文件名（所有日志都写入此文件）
+  unified_log_file: 'unified.log'
+  
+  # 是否自动清理旧日志
+  cleanup_old_logs: true
+  
+  # 日志文件最大保留天数
+  max_log_age_days: 30
+
+# 服务特定配置
+services:
+  gemma_service:
+    # 服务特定的日志级别
+    log_level: INFO
+    
+    # 是否记录详细请求信息
+    detailed_request_logging: true
+    
+    # 请求日志中是否包含消息内容
+    log_message_content: true
+    
+    # 消息内容最大长度（超过则截断）
+    max_message_length: 500
+  
+  fastapi_service:
+    log_level: INFO
+    detailed_request_logging: true
+    log_message_content: false
+    max_message_length: 200
