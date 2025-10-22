@@ -6,25 +6,29 @@ environment:
   template: "gemma3"
   inference_engine: "vllm"
 
+  # HuggingFace 推理配置
   hf_config:
     max_new_tokens: 1024
     temperature: 0.7
     top_p: 0.9
+    do_sample: true
+    pad_token_id: null
+    eos_token_id: null
 
   vllm_config:
     # GPU并行配置 - 针对27B模型优化
-    tensor_parallel_size: 1  # 27B模型建议单GPU或2GPU并行
+    tensor_parallel_size: 2  # 27B模型建议2GPU张量并行
     pipeline_parallel_size: 1
     
     # 内存优化 - 针对27B模型的内存需求
-    gpu_memory_utilization: 0.90  # 27B模型需要更多内存，降低到90%
-    max_model_len: 120000  # 120K tokens
+    gpu_memory_utilization: 0.95  # 提高GPU内存利用率
+    max_model_len: 128000  # 128K tokens，支持更长上下文
     dtype: "bfloat16"  # 27B模型推荐使用bfloat16
     
     # 批处理优化 - 针对27B模型的性能特点
-    max_num_batched_tokens: 32768  # 增加批处理token数以充分利用128K上下文
-    max_num_seqs: 128  # 27B模型并发数适当降低以保持性能
-    max_paddings: 512  # 增加padding以支持长序列
+    max_num_batched_tokens: 16384  # 适中的批处理token数
+    max_num_seqs: 64  # 降低并发数以优化27B模型性能
+    max_paddings: 256  # 适中的padding设置
     
     # 性能优化
     enforce_eager: false  # 使用CUDA Graph优化
@@ -41,8 +45,8 @@ environment:
     # 量化配置 - 27B模型可考虑量化以节省内存
     quantization: null  # 可选: "awq", "gptq", "squeezellm"
     
-    # 序列长度优化 - 针对120K上下文
-    max_seq_len_to_capture: 120000  # 120K tokens
+    # 序列长度优化 - 针对128K上下文
+    max_seq_len_to_capture: 128000  # 128K tokens
     
     # KV Cache优化 - 针对长序列
     kv_cache_dtype: "auto"  # 自动选择KV Cache数据类型
@@ -52,7 +56,7 @@ environment:
     attention_backend: "FLASH_ATTN"  # 使用 Flash Attention 后端
     
     # 27B模型特有优化
-    swap_space: 8  # GB，增加swap空间以支持128K上下文
+    swap_space: 4  # GB，适中的swap空间
     cpu_offload_gb: 0  # 不启用CPU offload以保持性能
     
     # 多模态支持（如果使用图像）
@@ -61,8 +65,8 @@ environment:
     image_input_shape: "1,3,896,896"  # 图像输入形状
     
     # 27B模型高级优化
-    enable_chunked_prefill: false  # 简化配置，禁用分块预填充
-    prefill_chunk_size: 4096  # 标准预填充块大小
+    enable_chunked_prefill: true  # 启用分块预填充以优化长序列
+    prefill_chunk_size: 2048  # 适中的预填充块大小
 
   service_config:
     host: "0.0.0.0"
@@ -72,15 +76,15 @@ environment:
     loop: "uvloop"  # 高性能事件循环
     http: "httptools"  # 高性能HTTP解析器
     # 连接优化 - 针对27B模型调整
-    limit_concurrency: 32  # 进一步降低并发数以优化27B模型性能
-    limit_max_requests: 500  # 降低最大请求数
-    timeout_keep_alive: 120  # 增加保持连接时间以支持长序列处理
+    limit_concurrency: 16  # 进一步降低并发数以优化27B模型性能
+    limit_max_requests: 200  # 降低最大请求数
+    timeout_keep_alive: 180  # 增加保持连接时间以支持长序列处理
     # 27B模型特有配置
-    max_request_size: 268435456  # 256MB，支持更长的文本请求
+    max_request_size: 134217728  # 128MB，适中的请求大小
     timeout_graceful_shutdown: 60  # 增加优雅关闭超时
     # 长序列处理优化
     request_timeout: 300  # 5分钟请求超时，支持长序列处理
-    max_request_length: 120000  # 120K tokens
+    max_request_length: 128000  # 128K tokens
 
   generation_defaults:
     temperature: 0.7
@@ -92,8 +96,8 @@ environment:
     repetition_penalty: 1.1
     length_penalty: 1.0
     early_stopping: true
-    # 输入长度优化 - 支持120K上下文
-    max_input_length: 120000  # 120K tokens
+    # 输入长度优化 - 支持128K上下文
+    max_input_length: 128000  # 128K tokens
     # 27B模型特有参数
     min_new_tokens: 1
     max_new_tokens: 8192
@@ -106,7 +110,7 @@ environment:
     num_beams: 1  # 单beam以保持速度
     early_stopping: true
     # 长序列生成优化
-    max_prompt_length: 120000  # 120K tokens
+    max_prompt_length: 128000  # 128K tokens
     max_completion_length: 8192  # 支持8K输出
     # 性能优化参数
     use_cache: true  # 启用KV cache

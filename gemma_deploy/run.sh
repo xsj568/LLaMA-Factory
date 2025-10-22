@@ -3,12 +3,15 @@
 # 设置Python环境路径
 PYTHON_PATH="/root/miniconda3/envs/llama/bin/python"
 
+# 设置环境变量，跳过vllm版本检查
+export DISABLE_VERSION_CHECK=1
+
 # 服务配置
 SERVICE=${1:-server}
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 # 检查Python环境是否存在
-if [ ! -f "$PYTHON_PATH" ]; then
+if [ ! -e "$PYTHON_PATH" ]; then
     echo "❌ Python环境不存在: $PYTHON_PATH"
     echo "请检查conda环境是否正确激活"
     echo "尝试查找Python:"
